@@ -3,10 +3,9 @@ set(sources
 )
 
 set(exe_sources
-		src/main.cpp
 		${sources}
 )
 
 set(headers
-    include/project/tmp.hpp
+    include/subprocess/RaggedCstrArray.hpp
 )

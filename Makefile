@@ -32,7 +32,7 @@ help:
 
 test: ## run tests quickly with ctest
 	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dmodern-cpp-template_ENABLE_UNIT_TESTING=1
+	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -DSubprocess_ENABLE_UNIT_TESTING=1
 	cmake --build build --config Release
 	cd build/ && ctest -C Release -VV
 

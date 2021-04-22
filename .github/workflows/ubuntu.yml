@@ -18,7 +18,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      
+
     - name: cache dependencies
       uses: actions/cache@v2
       id: cache
@@ -37,8 +37,8 @@ jobs:
         cmake --build build --target install --config Release
 
     - name: configure
-      run: cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/$INSTALL_LOCATION -DProject_ENABLE_CODE_COVERAGE=1
-      
+      run: cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/$INSTALL_LOCATION -DSubprocess_ENABLE_CODE_COVERAGE=1
+
     - name: build
       run: cmake --build build --config $BUILD_TYPE -j4
 
@@ -47,9 +47,9 @@ jobs:
         cd build
         ctest -C $BUILD_TYPE -VV
 
-    - name: Code coverage using Codecov 
-      run: bash <(curl -s https://codecov.io/bash) 
+    - name: Code coverage using Codecov
+      run: bash <(curl -s https://codecov.io/bash)
 
     - name: install project
-      run: cmake --build build --target install --config Release 
+      run: cmake --build build --target install --config Release
 
