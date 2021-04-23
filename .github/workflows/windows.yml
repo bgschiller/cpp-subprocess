@@ -31,7 +31,7 @@ jobs:
           cd ..
           git clone https://github.com/catchorg/Catch2.git --branch v2.x
           cd Catch2
-          cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/$INSTALL_LOCATION
+          cmake -Bbuild -DCMAKE_INSTALL_PREFIX="$HOME/$env:INSTALL_LOCATION"
           cmake --build build --config Release
           cmake --build build --target install --config Release
           cd ../Subprocess
