@@ -1,5 +1,6 @@
 ---
 BasedOnStyle: Google
+AlignAfterOpenBracket: AlwaysBreak
 AlignConsecutiveMacros: 'true'
 AllowShortCaseLabelsOnASingleLine: 'true'
 AllowShortBlocksOnASingleLine: 'Empty'

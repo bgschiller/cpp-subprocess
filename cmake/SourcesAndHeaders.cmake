@@ -1,5 +1,5 @@
 set(sources
-    src/tmp.cpp
+    src/ExitStatus.cpp
 )
 
 set(exe_sources
@@ -7,5 +7,9 @@ set(exe_sources
 )
 
 set(headers
+    include/subprocess/CaptureData.hpp
+    include/subprocess/ExitStatus.hpp
+    include/subprocess/Popen.hpp
+    include/subprocess/PopenConfig.hpp
     include/subprocess/RaggedCstrArray.hpp
 )
