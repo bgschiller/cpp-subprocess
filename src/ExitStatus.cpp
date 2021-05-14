@@ -21,5 +21,5 @@ bool subprocess::ExitStatus::success() const {
 }
 
 std::string subprocess::ExitStatus::toString() const {
-  return subprocess::internal::variant_to_string(*this);
+  return subprocess::internal::variant_to_string<ExitStatus>(*this);
 }

@@ -1,21 +1,28 @@
 #ifndef SUBPROCESS_VARIANT_HELPERS_H_
 #define SUBPROCESS_VARIANT_HELPERS_H_
 
+#include <iostream>
 #include <string>
 #include <type_traits>
-#include <iostream>
+
+#include "subprocess/type_name.hpp"
 
 namespace subprocess::internal {
 
-  template <typename T>
+  template<typename T>
   class DefinesToString {
     // grumble grumble, wish we had concepts
     typedef char one;
-    struct two { char x[2]; };
+    struct two {
+      char x[2];
+    };
 
-    template <typename C> static one test (decltype(&C::toString));
-    template <typename C> static two test(...);
-  public:
+    template<typename C>
+    static one test(decltype(&C::toString));
+    template<typename C>
+    static two test(...);
+
+   public:
     enum { value = sizeof(test<T>(0)) == sizeof(char) };
   };
 
@@ -40,7 +47,7 @@ namespace subprocess::internal {
           } else {
             start = start + prefix.size();
           }
-          return std::string{get_type_name<V>()} + "::" + std::string{itemName.substr(start)};
+          return std::string{ get_type_name<V>() } + "::" + std::string{ itemName.substr(start) };
         },
         var);
   }

@@ -2,6 +2,7 @@
 #define SUBPROCESS_EXIT_STATUS_H_
 #include <stdint.h>
 
+#include <string>
 #include <variant>
 namespace subprocess {
   /**

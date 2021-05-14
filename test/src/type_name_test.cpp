@@ -2,6 +2,7 @@
 
 #include <catch2/catch.hpp>
 
+#include "subprocess/ExitStatus.hpp"
 #include "subprocess/Redirection.hpp"
 
 using namespace subprocess;
@@ -10,6 +11,9 @@ using namespace subprocess::internal;
 TEST_CASE("type-name") {
   REQUIRE(get_type_name<None>() == "subprocess::internal::None");
 
-  Redirection r{None()};
+  Redirection r{ None() };
   REQUIRE(r.toString() == "subprocess::Redirection::None");
+
+  ExitStatus e{ Signaled{ 9 } };
+  REQUIRE(e.toString() == "subprocess::ExitStatus::Signaled(9)");
 }
