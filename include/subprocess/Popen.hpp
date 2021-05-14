@@ -1,5 +1,8 @@
 #ifndef SUBPROCESS_POPEN_H_
 #define SUBPROCESS_POPEN_H_
+#include <stdio.h>
+
+#include <optional>
 #include <utility>
 
 #include "ExitStatus.hpp"
@@ -18,6 +21,12 @@ namespace subprocess {
      * exit status is returned. This method is guaranteed not to block
      */
     std::optional<ExitStatus> poll();
+
+    FILE *stdin;
+    FILE *stdout;
+    FILE *stderr;
+
+    bool detached;
   };
 }  // namespace subprocess
 #endif

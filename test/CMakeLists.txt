@@ -17,6 +17,8 @@ verbose_message("Adding tests under ${CMAKE_PROJECT_NAME}Tests...")
 
 set(test_sources
   src/ragged_cstr_array_test.cpp
+  src/type_name_test.cpp
+  src/main.cpp
 )
 add_executable(${PROJECT_NAME} ${test_sources})
 
@@ -25,13 +27,14 @@ add_executable(${PROJECT_NAME} ${test_sources})
 #
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -O0 -g)
 
 #
 # Setup code coverage if enabled
 #
 
 if (${CMAKE_PROJECT_NAME}_ENABLE_CODE_COVERAGE)
-  target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -O0 -g -fprofile-arcs -ftest-coverage)
+  target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -fprofile-arcs -ftest-coverage)
   target_link_options(${CMAKE_PROJECT_NAME} PUBLIC -fprofile-arcs -ftest-coverage)
   verbose_message("Code coverage is enabled and provided with GCC.")
 endif()
