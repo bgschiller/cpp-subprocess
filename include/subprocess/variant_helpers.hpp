@@ -40,14 +40,14 @@ namespace subprocess::internal {
           using T = std::decay_t<decltype(arg)>;
           if constexpr (DefinesToString<T>::value) return arg.toString();
           auto itemName = get_type_name<T>();
-          static const std::string prefix{ "subprocess::internal::" };
+          static const std::string prefix{ ">::" };
           auto start = itemName.find(prefix);
           if (start == std::string_view::npos) {
             start = 0;
           } else {
             start = start + prefix.size();
           }
-          return std::string{ get_type_name<V>() } + "::" + std::string{ itemName.substr(start) };
+          return std::string{ itemName.substr(start) };
         },
         var);
   }

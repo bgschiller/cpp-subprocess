@@ -5,14 +5,17 @@
 #include <optional>
 #include <utility>
 
+#include "ChildState.hpp"
 #include "ExitStatus.hpp"
 #include "PopenConfig.hpp"
+#include "PopenError.hpp"
 namespace subprocess {
 
   class Popen {
    public:
     Popen() = delete;
-    Popen(std::initializer_list<std::string> argv, PopenConfig cfg);
+    using Result = std::variant<PopenError, Popen>;
+    static Result create(std::initializer_list<std::string> argv, PopenConfig cfg);
 
     /**
      * Check whether the process is still running, without blocking or errors.
@@ -26,7 +29,10 @@ namespace subprocess {
     FILE *stdout;
     FILE *stderr;
 
+    ChildState child_state;
     bool detached;
+   private:
+    std::optional<PopenError> os_start(std::initializer_list<std::string> argv, PopenConfig cfg);
   };
 }  // namespace subprocess
 #endif

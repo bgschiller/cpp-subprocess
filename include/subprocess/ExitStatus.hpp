@@ -5,13 +5,14 @@
 #include <string>
 #include <variant>
 namespace subprocess {
-  /**
-   * The process exited with the specified exit code.
-   *
-   * Note that the exit code is limited to a much smaller range on most platforms.
-   */
 
-  namespace internal {
+  class ExitStatus {
+   public:
+    /**
+     * The process exited with the specified exit code.
+     *
+     * Note that the exit code is limited to a much smaller range on most platforms.
+     */
     struct Exited {
       int32_t code;
 
@@ -45,20 +46,16 @@ namespace subprocess {
      * calls `waitpid()` on the PID of the child process.
      */
     struct Undetermined { };
-  }  // namespace internal
-  class ExitStatus
-      : public std::variant<
-            internal::Exited, internal::Signaled, internal::Other, internal::Undetermined> {
-   public:
-    using variant::variant;
-    using Exited = internal::Exited;
-    using Signaled = internal::Signaled;
-    using Other = internal::Other;
-    using Undetermined = internal::Undetermined;
 
     bool success() const;
 
     std::string toString() const;
+    using StateType = std::variant<Exited, Signaled, Other, Undetermined>;
+    ExitStatus(StateType&& state)
+      : _state{std::move(state)}
+      { }
+    private:
+    const StateType _state;
   };
 }  // namespace subprocess
 #endif

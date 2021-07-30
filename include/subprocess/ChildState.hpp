@@ -7,8 +7,8 @@
 
 #include "ExitStatus.hpp"
 namespace subprocess {
+  struct ChildState {
 
-  namespace internal {
     struct Preparing { };
     struct Running {
       pid_t pid;
@@ -16,13 +16,14 @@ namespace subprocess {
     struct Finished {
       ExitStatus exit_status;
     };
-  }  // namespace internal
 
-  struct ChildState
-      : public std::variant<internal::Preparing, internal::Running, internal::Finished> {
-    using Preparing = internal::Preparing;
-    using Running = internal::Running;
-    using Finished = internal::Finished;
+    using StateType =  std::variant<internal::Preparing, internal::Running, internal::Finished>;
+
+    ChildState(StateType&& state)
+      : _state{std::move(state)}
+      { }
+    private:
+    const StateType _state;
   };
 }  // namespace subprocess
 #endif

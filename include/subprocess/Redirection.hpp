@@ -9,7 +9,7 @@
 
 namespace subprocess {
 
-  namespace internal {
+  struct Redirection {
     /// Do nothing with the stream.
     ///
     /// The stream is typically inherited from the parent.  The field
@@ -60,18 +60,16 @@ namespace subprocess {
     struct File {
       std::fstream file;
     };
-  }  // namespace internal
-  struct Redirection
-      : public std::variant<internal::None, internal::Pipe, internal::Merge, internal::File> {
-    // make names available as Redirection::None, etc
-    using None = internal::None;
-    using Pipe = internal::Pipe;
-    using Merge = internal::Merge;
-    using File = internal::File;
 
+    using StateType = std::variant<None, Pipe, Merge, File>;
+    Redirection(StateType&& state)
+      : _state{std::move(state)}
+      { }
     std::string toString() {
-      return internal::variant_to_string(*this);
+      return internal::variant_to_string(_state);
     }
+    private:
+    const StateType _state;
   };
 }  // namespace subprocess
 #endif

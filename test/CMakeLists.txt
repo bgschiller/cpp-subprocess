@@ -17,6 +17,7 @@ verbose_message("Adding tests under ${CMAKE_PROJECT_NAME}Tests...")
 
 set(test_sources
   src/ragged_cstr_array_test.cpp
+  src/simple_commands.cpp
   src/type_name_test.cpp
   src/main.cpp
 )
