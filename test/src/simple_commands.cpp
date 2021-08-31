@@ -3,6 +3,11 @@
 #include "subprocess/Popen.hpp"
 
 TEST_CASE("echo time") {
-    subprocess::Popen echo({"echo", "yolo"}, subprocess::PopenConfig{});
-    echo.poll();
+    auto echoR = subprocess::Popen::create({"echo", "yolo"}, subprocess::PopenConfig{});
+    REQUIRE(echoR.ok());
+    auto echo = echoR.take_value();
+    auto exitR = echo.wait();
+    REQUIRE(exitR.ok());
+    auto exit = exitR.take_value();
+    REQUIRE(exit.success());
 }

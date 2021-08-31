@@ -3,9 +3,12 @@
 #include <stdint.h>
 
 #include <fstream>
+#include <functional>
+#include <optional>
 #include <variant>
 
 #include "subprocess/variant_helpers.hpp"
+#include "subprocess/Result.hpp"
 
 namespace subprocess {
 
@@ -58,18 +61,36 @@ namespace subprocess {
     /// The field in `Popen` corresponding to the stream will be
     /// `None`.
     struct File {
-      std::fstream file;
+      int fd;
     };
-
+  private:
     using StateType = std::variant<None, Pipe, Merge, File>;
-    Redirection(StateType&& state)
-      : _state{std::move(state)}
-      { }
+    const StateType _state;
+  public:
+    template<typename... Args>
+    Redirection(Args&&... args)
+    : _state{std::forward<Args>(args)...}
+    { }
+
+    template <typename T>
+    bool is_a() const {
+      return std::holds_alternative<T>(_state);
+    }
+    template <typename T>
+    T get() const {
+      return std::get<T>(_state);
+    }
+
     std::string toString() {
       return internal::variant_to_string(_state);
     }
-    private:
-    const StateType _state;
+
+    Result<const std::nullopt_t> match(
+      std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,
+      std::function<Result<const std::nullopt_t>(const File&)> file_case,
+      std::function<Result<const std::nullopt_t>(const Merge&)> merge_case,
+      std::function<Result<const std::nullopt_t>()> none_case
+    ) const;
   };
 }  // namespace subprocess
 #endif

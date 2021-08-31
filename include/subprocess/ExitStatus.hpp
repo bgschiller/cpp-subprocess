@@ -6,8 +6,7 @@
 #include <variant>
 namespace subprocess {
 
-  class ExitStatus {
-   public:
+  struct ExitStatus {
     /**
      * The process exited with the specified exit code.
      *
@@ -46,16 +45,21 @@ namespace subprocess {
      * calls `waitpid()` on the PID of the child process.
      */
     struct Undetermined { };
+   private:
+    using StateType = std::variant<Exited, Signaled, Other, Undetermined>;
+    const StateType _state;
+   public:
+
+    template<typename... Args>
+    ExitStatus(Args&&... args)
+    : _state{std::forward<Args>(args)...}
+    { }
 
     bool success() const;
 
     std::string toString() const;
-    using StateType = std::variant<Exited, Signaled, Other, Undetermined>;
-    ExitStatus(StateType&& state)
-      : _state{std::move(state)}
-      { }
-    private:
-    const StateType _state;
+
+
   };
 }  // namespace subprocess
 #endif

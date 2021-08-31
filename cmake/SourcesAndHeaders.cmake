@@ -1,5 +1,10 @@
 set(sources
     src/ExitStatus.cpp
+    src/ChildState.cpp
+    src/Popen.cpp
+    src/PopenConfig.cpp
+    src/posix.cpp
+    src/Redirection.cpp
 )
 
 set(exe_sources
@@ -8,10 +13,17 @@ set(exe_sources
 
 set(headers
     include/subprocess/CaptureData.hpp
-    include/subprocess/type_name.hpp
+    include/subprocess/ChildState.hpp
+    include/subprocess/Communicator.hpp
     include/subprocess/ExitStatus.hpp
     include/subprocess/Popen.hpp
     include/subprocess/PopenConfig.hpp
+    include/subprocess/PopenError.hpp
+    include/subprocess/posix.hpp
+    include/subprocess/PrepExec.hpp
     include/subprocess/RaggedCstrArray.hpp
+    include/subprocess/Redirection.hpp
+    include/subprocess/Result.hpp
+    include/subprocess/type_name.hpp
     include/subprocess/variant_helpers.hpp
 )

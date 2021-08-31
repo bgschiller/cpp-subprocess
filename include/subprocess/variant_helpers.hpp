@@ -27,11 +27,11 @@ namespace subprocess::internal {
   };
 
   template<class... Ts>
-  struct overload : Ts... {
+  struct overloaded : Ts... {
     using Ts::operator()...;
   };
   template<class... Ts>
-  overload(Ts...) -> overload<Ts...>;
+  overloaded(Ts...) -> overloaded<Ts...>;
 
   template<typename V>
   std::string variant_to_string(const V& var) {

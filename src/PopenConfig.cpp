@@ -1,6 +1,10 @@
 #include "subprocess/PopenConfig.hpp"
 
-std::vector<EnvVar> subprocess::PopenConfig::currentEnv() {
+extern char **environ;
+
+using namespace subprocess;
+
+std::vector<EnvVar> PopenConfig::currentEnv() {
   char** envPtr = environ;
   std::vector<EnvVar> envs;
   while (envPtr != nullptr && *envPtr != nullptr) {
