@@ -51,12 +51,19 @@ namespace subprocess {
     /// Set user ID for the subprocess.
     ///
     /// If specified, calls `setuid()` before execing the child process.
-    std::optional<int32_t> setuid{ std::nullopt };
+    std::optional<uid_t> setuid{ std::nullopt };
 
     /// Set group ID for the subprocess.
     ///
     /// If specified, calls `setgid()` before execing the child process.
-    std::optional<int32_t> setgid{ std::nullopt };
+    std::optional<gid_t> setgid{ std::nullopt };
+
+    /// Make the subprocess belong to a new process group.
+    ///
+    /// If specified, calls `setpgid(0, 0)` before execing the child process.
+    //
+    // Not to be confused with the similarly named `setgid`.
+    bool setpgid{false};
 
     /// Returns the environment of the current process.
     ///

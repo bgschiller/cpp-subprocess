@@ -65,7 +65,7 @@ namespace subprocess {
     };
   private:
     using StateType = std::variant<None, Pipe, Merge, File>;
-    const StateType _state;
+    StateType _state;
   public:
     template<typename... Args>
     Redirection(Args&&... args)

@@ -17,6 +17,7 @@ namespace subprocess {
 
       std::string toString() const;
     };
+
     /**
      * The process exited due to a signal with the specified number.
      *
@@ -47,18 +48,21 @@ namespace subprocess {
     struct Undetermined { };
    private:
     using StateType = std::variant<Exited, Signaled, Other, Undetermined>;
-    const StateType _state;
+    StateType _state;
    public:
 
     template<typename... Args>
     ExitStatus(Args&&... args)
     : _state{std::forward<Args>(args)...}
     { }
+    ExitStatus(const ExitStatus& other);
+    ExitStatus(ExitStatus&& other);
 
     bool success() const;
 
     std::string toString() const;
 
+    ExitStatus& operator=(ExitStatus&& other);
 
   };
 }  // namespace subprocess

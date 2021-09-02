@@ -9,6 +9,11 @@ namespace subprocess {
     constexpr static ErrKind LogicError = ErrKind::LogicError;
     const ErrKind kind;
     const std::string message;
+
+    PopenError(ErrKind _kind, const std::string& _message);
+    PopenError(PopenError&& other);
+    PopenError(const PopenError& other);
+    PopenError& operator=(PopenError&& other);
   };
 }  // namespace subprocess
 #endif

@@ -20,7 +20,7 @@ namespace subprocess {
     };
    private:
     using StateType =  std::variant<Preparing, Running, Finished>;
-    const StateType _state;
+    StateType _state;
    public:
 
     template<typename... Args>
@@ -42,6 +42,8 @@ namespace subprocess {
       std::function<Result<const std::nullopt_t>(const Running&)> running_case,
       std::function<Result<const std::nullopt_t>(const Finished&)> finished_case
     ) const;
+
+    ChildState& operator=(ChildState&& other);
 
   };
 }  // namespace subprocess
