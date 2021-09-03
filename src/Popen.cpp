@@ -63,12 +63,12 @@ enum class MergeKind {
 };
 
 
-Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stdin, Redirection stdout, Redirection stderr) {
+Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stin, Redirection stout, Redirection sterr) {
   int child_stdin = 0, child_stdout = 1, child_stderr = 2;
   MergeKind merge = MergeKind::None;
 
   {
-    Result<const std::nullopt_t> res = stdin.match(
+    Result<const std::nullopt_t> res = stin.match(
       [&, this](const Redirection::Pipe&){ return prepare_pipe(true, &(this->std_in), child_stdin); },
       [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdin); },
       [&](const Redirection::Merge&){
@@ -80,7 +80,7 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stdin, Redire
   }
 
   {
-    Result<const std::nullopt_t> res = stdout.match(
+    Result<const std::nullopt_t> res = stout.match(
       [&, this](const Redirection::Pipe&){ return prepare_pipe(false, &(this->std_out), child_stdout); },
       [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdout); },
       [&](const Redirection::Merge&) { merge = MergeKind::OutToErr; return std::nullopt; },
@@ -90,7 +90,7 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stdin, Redire
   }
 
   {
-    Result<const std::nullopt_t> res = stderr.match(
+    Result<const std::nullopt_t> res = sterr.match(
       [&, this](const Redirection::Pipe&){ return prepare_pipe(false, &(this->std_err), child_stderr); },
       [&](const Redirection::File& file){ return prepare_file(file.fd, child_stderr); },
       [&](const Redirection::Merge&) { merge = MergeKind::ErrToOut; return std::nullopt; },

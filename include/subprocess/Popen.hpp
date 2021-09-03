@@ -92,7 +92,7 @@ namespace subprocess {
     // For Redirection::Pipe, this stores the parent end of the pipe
     // to the appropriate self.std* field, and returns the child end
     // of the pipe.
-    Result<std::tuple<int, int, int>> setup_streams(Redirection stdin, Redirection stdout, Redirection stderr);
+    Result<std::tuple<int, int, int>> setup_streams(Redirection stin, Redirection stout, Redirection sterr);
 
     Result<const std::nullopt_t> waitpid(bool block);
 
