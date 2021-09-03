@@ -20,6 +20,7 @@ namespace subprocess {
   class Popen {
    public:
     Popen() = delete;
+    // TODO: make a destructor that closes any open std_in, std_err, std_out
     static Result<Popen> create(std::vector<std::string> argv, const PopenConfig& cfg);
 
     /**
