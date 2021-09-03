@@ -38,7 +38,7 @@ TEST_CASE("RaggedCstrArray") {
   GIVEN("a handful of string to initialize") {
     const std::string redFish{ "red fish" };
     const std::string blueFish{ "blue fish" };
-    RaggedCstrArray arr{ "one fish", std::string("two fish"), redFish, blueFish };
+    RaggedCstrArray arr{ {"one fish", std::string("two fish"), redFish, blueFish } };
 
     THEN("the char star contains a c-string for each entry, plus a nullptr") {
       auto chstr = arr.asCharStar();

@@ -13,10 +13,18 @@ Result<const std::nullopt_t> ChildState::match(
   if (is_a<Preparing>()) return preparing_case(get<Preparing>());
   if (is_a<Running>()) return running_case(get<Running>());
   if (is_a<Finished>()) return finished_case(get<Finished>());
-  return std::nullopt;
+  return Result<const std::nullopt_t>{std::nullopt};
 }
 
 ChildState& ChildState::operator=(ChildState&& other) {
   _state = std::move(other._state);
   return *this;
 }
+
+ChildState::ChildState(ChildState&& other)
+: _state{std::move(other._state)}
+{ }
+
+ChildState::ChildState(const ChildState& other)
+: _state{other._state}
+{ }

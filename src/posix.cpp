@@ -1,6 +1,7 @@
 #include "subprocess/posix.hpp"
 
 #include <unistd.h>
+#include <signal.h>
 #include <string.h>
 
 namespace subprocess {

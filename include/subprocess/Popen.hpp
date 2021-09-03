@@ -4,12 +4,15 @@
 
 #include <chrono>
 #include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "ChildState.hpp"
 #include "ExitStatus.hpp"
 #include "PopenConfig.hpp"
 #include "PopenError.hpp"
+#include "PrepExec.hpp"
 #include "Result.hpp"
 
 namespace subprocess {
@@ -17,7 +20,7 @@ namespace subprocess {
   class Popen {
    public:
     Popen() = delete;
-    static Result<Popen> create(std::initializer_list<std::string> argv, const PopenConfig& cfg);
+    static Result<Popen> create(std::vector<std::string> argv, const PopenConfig& cfg);
 
     /**
      * Wait for the process to finish and return its exit status.
@@ -80,7 +83,7 @@ namespace subprocess {
     ChildState child_state;
     bool detached;
    private:
-    std::optional<PopenError> os_start(const std::initializer_list<std::string>& argv, const PopenConfig& cfg);
+    std::optional<PopenError> os_start(const std::vector<std::string>& argv, const PopenConfig& cfg);
     // Create the pipes requested by stdin, stdout, and stderr from
     // the PopenConfig used to construct us, and return the file-
     // descriptors to be given to the child process.
@@ -91,6 +94,15 @@ namespace subprocess {
     Result<std::tuple<int, int, int>> setup_streams(Redirection stdin, Redirection stdout, Redirection stderr);
 
     Result<const std::nullopt_t> waitpid(bool block);
+
+    int32_t do_exec(
+      PrepExec& just_exec,
+      std::tuple<int, int, int> child_ends,
+      std::optional<std::string> cwd,
+      std::optional<uint32_t> setuid,
+      std::optional<uint32_t> setgid,
+      bool setpgid
+    );
   };
 }  // namespace subprocess
 #endif

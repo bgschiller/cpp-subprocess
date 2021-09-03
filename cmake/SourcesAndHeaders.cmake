@@ -1,9 +1,11 @@
 set(sources
-    src/ExitStatus.cpp
     src/ChildState.cpp
+    src/ExitStatus.cpp
     src/Popen.cpp
     src/PopenConfig.cpp
+    src/PopenError.cpp
     src/posix.cpp
+    src/PrepExec.cpp
     src/Redirection.cpp
 )
 

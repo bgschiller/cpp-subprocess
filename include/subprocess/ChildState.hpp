@@ -28,6 +28,10 @@ namespace subprocess {
     : _state{std::forward<Args>(args)...}
     { }
 
+    ChildState(ChildState&& other);
+    ChildState(const ChildState& other);
+    ChildState& operator=(ChildState&& other);
+
     template <typename T>
     bool is_a() const {
       return std::holds_alternative<T>(_state);
@@ -42,8 +46,6 @@ namespace subprocess {
       std::function<Result<const std::nullopt_t>(const Running&)> running_case,
       std::function<Result<const std::nullopt_t>(const Finished&)> finished_case
     ) const;
-
-    ChildState& operator=(ChildState&& other);
 
   };
 }  // namespace subprocess

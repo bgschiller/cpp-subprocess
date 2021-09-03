@@ -37,7 +37,7 @@ namespace subprocess {
   class RaggedCstrArray {
    public:
     RaggedCstrArray() { }
-    RaggedCstrArray(std::initializer_list<std::string> strs)
+    RaggedCstrArray(std::vector<std::string> strs)
         : _cStrs{ strs.begin(), strs.end() }
         , _ptrs{ _cStrs.begin(), _cStrs.end() } { }
 

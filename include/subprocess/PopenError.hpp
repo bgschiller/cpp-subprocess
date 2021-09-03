@@ -1,6 +1,9 @@
 #ifndef SUBPROCESS_POPEN_ERROR_H_
 #define SUBPROCESS_POPEN_ERROR_H_
+
+#include <string>
 #include <variant>
+
 namespace subprocess {
 
   struct PopenError {
@@ -13,7 +16,6 @@ namespace subprocess {
     PopenError(ErrKind _kind, const std::string& _message);
     PopenError(PopenError&& other);
     PopenError(const PopenError& other);
-    PopenError& operator=(PopenError&& other);
   };
 }  // namespace subprocess
 #endif

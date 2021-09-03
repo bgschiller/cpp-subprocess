@@ -17,6 +17,12 @@ namespace subprocess {
     Result(Args&&... args)
     : _state{std::forward<Args>(args)...}
     { }
+    Result(Result&& other)
+    : _state{std::move(other._state)}
+    { }
+    Result(const Result& other)
+    : _state{other._state}
+    { }
 
     Result& operator=(Result&& other) {
       _state = std::move(other._state);

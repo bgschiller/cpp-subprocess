@@ -1,9 +1,11 @@
 #include "subprocess/PrepExec.hpp"
 
+#include <unistd.h>
+
 using namespace subprocess;
 
 PrepExec::PrepExec(
-  const std::string& cmd,
+  const std::string& _cmd,
   const std::vector<std::string>& args,
   const std::optional<std::vector<std::string>>& env
 )
@@ -11,7 +13,7 @@ PrepExec::PrepExec(
 , argvec{args}
 {
   if (env.has_value()) {
-    envvec = RaggedCStrArray{*env};
+    envvec = RaggedCstrArray{*env};
   }
 
   // Allocate enough room for "<pathdir>/<command>\0", pathdir
@@ -25,8 +27,8 @@ PrepExec::PrepExec(
       size_t pos = 0;
       size_t thisDirSize = 0;
       size_t biggestDirSize = 0;
-      while (searchpath[pos] != '\0') {
-        if (searchpath[pos] != ':') {
+      while (searchPathRaw[pos] != '\0') {
+        if (searchPathRaw[pos] != ':') {
           thisDirSize++;
           biggestDirSize = thisDirSize > biggestDirSize ? thisDirSize : biggestDirSize;
         } else {
@@ -47,7 +49,7 @@ int32_t PrepExec::exec() {
     // POSIX requires execvp and execve, but not execvpe (although
     // glibc provides one), so we have to iterate over PATH ourselves
     size_t start = 0;
-    size_t end = searchpath.find(":");
+    size_t end = searchpath->find(":");
     while (start != std::string::npos) { // for each PATH component,
       // 1. build the full path to the executable, storing
       //   the value in prealloc_exe. prealloc_exe is guaranteed
@@ -55,14 +57,13 @@ int32_t PrepExec::exec() {
       //   (see ctor for prealloc_exe.reserve())
       size_t ix = 0;
       while (start < end) { // 1a. the PATH segment
-        prealloc_exe[ix++] = searchpath[start++];
+        prealloc_exe[ix++] = searchpath->at(start++);
       } // exit condition: start == end, the position of the next ":" or std::string::npos
       if (start != std::string::npos) {
         start++;
-        end = searchpath.find(":", start);
+        end = searchpath->find(":", start);
       }
       prealloc_exe[ix++] = '/'; // 1b. a seperating '/'
-      size_t exe_ix = 0;
       for (auto ch : cmd) { // 1c. the executable name
         prealloc_exe[ix++] = ch;
       }

@@ -20,12 +20,12 @@ namespace subprocess {
  */
 class PrepExec {
   std::string cmd;
-  RaggedCStrArray argvec;
-  std::optional<RaggedCStrArray> envvec;
+  RaggedCstrArray argvec;
+  std::optional<RaggedCstrArray> envvec;
   std::optional<std::string> searchpath;
-  std::vector<uint8_t> prealloc_exe;
+  std::vector<char> prealloc_exe;
 
-  int32_t PrepExec::libc_exec();
+  int32_t libc_exec();
 
  public:
   PrepExec(

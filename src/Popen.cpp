@@ -1,5 +1,4 @@
 #include "subprocess/Popen.hpp"
-
 #include "subprocess/posix.hpp"
 
 #include <errno.h>
@@ -11,7 +10,7 @@
 
 using namespace subprocess;
 
-Result<Popen> Popen::create(std::initializer_list<std::string> argv, const PopenConfig& cfg) {
+Result<Popen> Popen::create(std::vector<std::string> argv, const PopenConfig& cfg) {
   if (argv.size() == 0) {
     return PopenError{PopenError::LogicError, "argv must not be empty"};
   }
@@ -68,32 +67,37 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stdin, Redire
   int child_stdin = 0, child_stdout = 1, child_stderr = 2;
   MergeKind merge = MergeKind::None;
 
-  Result<const std::nullopt_t> res;
-  res = stdin.match(
-    [&, this](const Redirection::Pipe&){ return prepare_pipe(true, &(this->std_in), child_stdin); },
-    [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdin); },
-    [&](const Redirection::Merge&){
-      return PopenError{PopenError::LogicError, "Redirection::Merge not valid for stdin"};
-    },
-    []{ /* inherit fds */ return std::nullopt; }
-  );
-  if (!res.ok()) return res.take_error();
+  {
+    Result<const std::nullopt_t> res = stdin.match(
+      [&, this](const Redirection::Pipe&){ return prepare_pipe(true, &(this->std_in), child_stdin); },
+      [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdin); },
+      [&](const Redirection::Merge&){
+        return PopenError{PopenError::LogicError, "Redirection::Merge not valid for stdin"};
+      },
+      []{ /* inherit fds */ return std::nullopt; }
+    );
+    if (!res.ok()) return res.take_error();
+  }
 
-  res = stdout.match(
-    [&, this](const Redirection::Pipe&){ return prepare_pipe(false, &(this->std_out), child_stdout); },
-    [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdout); },
-    [&](const Redirection::Merge&) { merge = MergeKind::OutToErr; return std::nullopt; },
-    []{ /* inherit fds */ return std::nullopt; }
-  );
-  if (!res.ok()) return res.take_error();
+  {
+    Result<const std::nullopt_t> res = stdout.match(
+      [&, this](const Redirection::Pipe&){ return prepare_pipe(false, &(this->std_out), child_stdout); },
+      [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdout); },
+      [&](const Redirection::Merge&) { merge = MergeKind::OutToErr; return std::nullopt; },
+      []{ /* inherit fds */ return std::nullopt; }
+    );
+    if (!res.ok()) return res.take_error();
+  }
 
-  res = stderr.match(
-    [&, this](const Redirection::Pipe&){ return prepare_pipe(false, &(this->std_err), child_stderr); },
-    [&](const Redirection::File& file){ return prepare_file(file.fd, child_stderr); },
-    [&](const Redirection::Merge&) { merge = MergeKind::ErrToOut; return std::nullopt; },
-    []{ /* inherit fds */ return std::nullopt; }
-  );
-  if (!res.ok()) return res.take_error();
+  {
+    Result<const std::nullopt_t> res = stderr.match(
+      [&, this](const Redirection::Pipe&){ return prepare_pipe(false, &(this->std_err), child_stderr); },
+      [&](const Redirection::File& file){ return prepare_file(file.fd, child_stderr); },
+      [&](const Redirection::Merge&) { merge = MergeKind::ErrToOut; return std::nullopt; },
+      []{ /* inherit fds */ return std::nullopt; }
+    );
+    if (!res.ok()) return res.take_error();
+  }
 
   // TODO: make sure we test these. Do we need to dup() to get a second reference to the same file?
   if (merge == MergeKind::ErrToOut) {
@@ -117,7 +121,7 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
     auto child_ends = child_endsR.take_value();
     std::optional<std::vector<std::string>> childEnv;
     if (config.env.has_value()) {
-      childEnv.emplace(std::vector<std::string>(config.env.size()));
+      childEnv.emplace(std::vector<std::string>(config.env->size()));
       std::transform(
         config.env->begin(), config.env->end(),
         std::back_inserter(*childEnv),
@@ -126,7 +130,7 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
         });
     }
     std::string cmd_to_exec = config.executable.value_or(argv[0]);
-    PrepExec preparedExec(cmd_to_exec, args, childEnv);
+    PrepExec preparedExec(cmd_to_exec, argv, childEnv);
 
     pid_t child_pid = ::fork();
     if (child_pid < 0) {
@@ -147,7 +151,7 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
       ::write(std::get<1>(exec_fail_pipe), &(result), sizeof(result));
       std::exit(127);
     } else {
-      child_state = ChildState::Running{pid};
+      child_state = ChildState::Running{child_pid};
     }
   }
   ::close(std::get<1>(exec_fail_pipe));
@@ -172,7 +176,7 @@ int32_t Popen::do_exec(
   bool setpgid
 ) {
   if (cwd.has_value()) {
-    if (chdir(*cwd) != 0) {
+    if (chdir(cwd->c_str()) != 0) {
       return errno;
     }
   }
@@ -219,7 +223,8 @@ int32_t Popen::do_exec(
 
 std::optional<ExitStatus> Popen::exit_status() const {
   if (child_state.is_a<ChildState::Finished>()) {
-    return child_state.get<ChildState::Finished>();
+    auto finished = child_state.get<ChildState::Finished>();
+    return std::make_optional<ExitStatus>(std::move(finished.exit_status));
   }
   return std::nullopt;
 }
@@ -244,8 +249,8 @@ Result<ExitStatus> Popen::wait() {
 
 Result<const std::nullopt_t> Popen::waitpid(bool block) {
   return child_state.match(
-    [](const ChildState::Preparing&){ panic("child_state == Preparing"); return std::nullopt; },
-    [block, this](const ChildState::Running& r){
+    [](const ChildState::Preparing&) -> Result<const std::nullopt_t> { panic("child_state == Preparing"); return std::nullopt; },
+    [block, this](const ChildState::Running& r) -> Result<const std::nullopt_t> {
       int status = 0;
       pid_t pid = ::waitpid(r.pid, &status, block ? 0 : WNOHANG);
       if (pid < 0) {
@@ -264,7 +269,7 @@ Result<const std::nullopt_t> Popen::waitpid(bool block) {
       }
       return std::nullopt;
     },
-    [](const ChildState::Finished&){ return std::nullopt; }
+    [](const ChildState::Finished&) -> Result<const std::nullopt_t> { return std::nullopt; }
   );
 }
 
