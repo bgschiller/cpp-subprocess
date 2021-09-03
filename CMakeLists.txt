@@ -136,15 +136,15 @@ message(STATUS "Finished setting up include directories.")
 
 # Identify and link with the specific "packages" the project uses
 #find_package(package_name package_version REQUIRED package_type [other_options])
-#target_link_libraries(
-#  ${PROJECT_NAME}
-#  PUBLIC
-#    dependency1 ...
-#  PRIVATE
-#    dependency2 ...
-#    ${PROJECT_NAME}_PROJECT_OPTIONS
-#    ${PROJECT_NAME}_PROJECT_WARNINGS
-#)
+target_link_libraries(
+ ${PROJECT_NAME}
+ #PUBLIC
+   # some public library
+ PRIVATE
+   pthread
+  #  ${PROJECT_NAME}_PROJECT_OPTIONS
+  #  ${PROJECT_NAME}_PROJECT_WARNINGS
+)
 
 verbose_message("Successfully added all dependencies and linked against them.")
 

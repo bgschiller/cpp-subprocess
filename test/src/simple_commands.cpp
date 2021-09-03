@@ -27,6 +27,7 @@ TEST_CASE("echo time") {
     REQUIRE(buf == std::string("yolo\n"));
     fclose(echo.std_out);
     auto exitR = echo.wait();
+    REQUIRE(exitR.ok());
     auto exit = exitR.take_value();
     REQUIRE(exit.success());
   }
