@@ -1,5 +1,6 @@
 #include "subprocess/PrepExec.hpp"
 
+#include <string.h>
 #include <unistd.h>
 
 using namespace subprocess;
@@ -19,7 +20,7 @@ PrepExec::PrepExec(
   // Allocate enough room for "<pathdir>/<command>\0", pathdir
   // being the longest component of PATH.
   size_t max_exe_len = cmd.size() + 2; // one for '/', one for '\0'
-  if (cmd.find("/") != std::string::npos) {
+  if (cmd.find("/") == std::string::npos) {
      // use the parent's PATH to determine what to exec
     const char* searchPathRaw = std::getenv("PATH");
     if (searchPathRaw != nullptr) {
@@ -87,7 +88,7 @@ int32_t PrepExec::exec() {
   return libc_exec();
 }
 
-  int32_t PrepExec::libc_exec() {
+int32_t PrepExec::libc_exec() {
   if (envvec.has_value()) {
     ::execve(prealloc_exe.data(), argvec.asCharStar(), envvec->asCharStar());
   } else {

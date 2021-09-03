@@ -134,7 +134,7 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
 
     pid_t child_pid = ::fork();
     if (child_pid < 0) {
-      return PopenError{PopenError::IoError, strerror(errno)};
+      return PopenError{PopenError::IoError, std::string("fork(): ") + strerror(errno)};
     } else if (child_pid == 0) {
       // i am the child
       ::close(std::get<0>(exec_fail_pipe));
@@ -161,7 +161,7 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
     // no error written, ok
     return std::nullopt;
   } else if (readCnt == sizeof(err)) {
-    return PopenError{PopenError::IoError, strerror(err)};
+    return PopenError{PopenError::IoError, std::string("Following error reported from exec (within child): ") + strerror(err)};
   } else {
     return PopenError{PopenError::LogicError, "invalid read_count from exec pipe"};
   }
