@@ -1,4 +1,5 @@
 #include <catch2/catch.hpp>
+#include <optional>
 
 #include "subprocess/Popen.hpp"
 #include "subprocess/Redirection.hpp"
@@ -16,7 +17,7 @@ TEST_CASE("echo time") {
     REQUIRE(exit.success());
   }
 
-  SECTION("pipe") {
+  SECTION("pipe output") {
     PopenConfig config;
     config.stdout = Redirection::Pipe();
     auto echoR = Popen::create({"echo", "yolo"}, config);
@@ -31,4 +32,32 @@ TEST_CASE("echo time") {
     auto exit = exitR.take_value();
     REQUIRE(exit.success());
   }
+
+  SECTION("pipe input and output") {
+    PopenConfig config;
+    config.stdin = Redirection::Pipe();
+    config.stdout = Redirection::Pipe();
+    auto grepR = Popen::create({"grep", "apple"}, config);
+    REQUIRE(grepR.ok());
+    auto grep = grepR.take_value();
+    REQUIRE(grep.poll() == std::nullopt);
+
+    std::string fruits = "apple\nbanana\npineapple\nlemon\n";
+    fprintf(grep.std_in, "%s", fruits.c_str());
+    fclose(grep.std_in);
+
+    auto exitR = grep.wait();
+    REQUIRE(exitR.ok());
+
+    auto exit = exitR.take_value();
+    REQUIRE(exit.success());
+
+    char buf[20];
+    fread(buf, 20, 1, grep.std_out);
+    REQUIRE(buf == std::string("apple\npineapple\n"));
+  }
+
+  // SECTION("porcelain") {
+  //   auto res = Exec("echo yolo") | Exec("cat") > Redirection::File("output.txt")
+  // }
 }

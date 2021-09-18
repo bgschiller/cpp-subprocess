@@ -1,16 +1,19 @@
 #include "subprocess/Popen.hpp"
 #include "subprocess/posix.hpp"
 
+#include <algorithm>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 
 using namespace subprocess;
+using namespace std::chrono_literals;
 
-Result<Popen> Popen::create(std::vector<std::string> argv, const PopenConfig& cfg) {
+Result<Popen> Popen::create(const std::vector<std::string>& argv, const PopenConfig& cfg) {
   if (argv.size() == 0) {
     return PopenError{PopenError::LogicError, "argv must not be empty"};
   }
@@ -151,6 +154,9 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
       ::write(std::get<1>(exec_fail_pipe), &(result), sizeof(result));
       std::exit(127);
     } else {
+      if (std::get<0>(child_ends) != 0) ::close(std::get<0>(child_ends));
+      if (std::get<1>(child_ends) != 1) ::close(std::get<1>(child_ends));
+      if (std::get<2>(child_ends) != 2) ::close(std::get<2>(child_ends));
       child_state = ChildState::Running{child_pid};
     }
   }
@@ -184,16 +190,19 @@ int32_t Popen::do_exec(
     if (::dup2(std::get<0>(child_ends), 0) == -1) {
       return errno;
     }
+    ::close(std::get<0>(child_ends));
   }
   if (std::get<1>(child_ends) != 1) {
     if (::dup2(std::get<1>(child_ends), 1) == -1) {
       return errno;
     }
+    ::close(std::get<1>(child_ends));
   }
   if (std::get<2>(child_ends) != 2) {
     if (::dup2(std::get<2>(child_ends), 2) == -1) {
       return errno;
     }
+    ::close(std::get<2>(child_ends));
   }
 
   if (auto err = reset_sigpipe()) {
@@ -273,3 +282,34 @@ Result<const std::nullopt_t> Popen::waitpid(bool block) {
   );
 }
 
+Result<std::optional<ExitStatus>> Popen::wait_timeout(std::chrono::milliseconds us) {
+  if (child_state.is_a<ChildState::Finished>()) {
+    return std::make_optional(child_state.get<ChildState::Finished>().exit_status);
+  }
+
+  auto deadline = std::chrono::system_clock::now() + us;
+  // double delay at every iteration, maxing at 100ms
+  auto delay = 1ms;
+
+  while (true) {
+    auto success = this->waitpid(false);
+    if (!success.ok()) return success.take_error();
+
+    if (child_state.is_a<ChildState::Finished>()) {
+      return std::make_optional(child_state.get<ChildState::Finished>().exit_status);
+    }
+
+    auto now = std::chrono::system_clock::now();
+    if (now >= deadline) return std::nullopt;
+
+    auto remaining = deadline - now;
+    std::this_thread::sleep_for(std::min<std::chrono::nanoseconds>({delay, remaining}));
+    delay = std::min<std::chrono::milliseconds>({delay * 2, 100ms});
+  }
+}
+
+std::optional<ExitStatus> Popen::poll() {
+  auto res = wait_timeout(0ms);
+  if (!res.ok()) return std::nullopt;
+  return res.take_value();
+}
