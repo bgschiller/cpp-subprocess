@@ -1,5 +1,7 @@
 #include <catch2/catch.hpp>
 #include <optional>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "subprocess/Popen.hpp"
 #include "subprocess/Redirection.hpp"
@@ -50,6 +52,25 @@ TEST_CASE("echo time") {
     REQUIRE(exitR.ok());
 
     auto exit = exitR.take_value();
+    REQUIRE(exit.success());
+
+    char buf[20];
+    fread(buf, 20, 1, grep.std_out);
+    REQUIRE(buf == std::string("apple\npineapple\n"));
+  }
+
+  SECTION("input from file") {
+    FILE* fruits = fopen("fruits.tmp", "w");
+    fprintf(fruits, "apple\nbanana\npineapple\nlemon\n");
+    fclose(fruits);
+    int fruitsFd = open("fruits.tmp", O_RDONLY);
+    PopenConfig config;
+    config.stdin = Redirection::File(fruitsFd);
+    config.stdout = Redirection::Pipe();
+    auto grep = Popen::create({"grep", "apple"}, config).or_throw();
+    close(fruitsFd);
+
+    auto exit = grep.wait().or_throw();
     REQUIRE(exit.success());
 
     char buf[20];

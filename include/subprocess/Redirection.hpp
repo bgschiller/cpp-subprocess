@@ -62,6 +62,7 @@ namespace subprocess {
     /// `None`.
     struct File {
       int fd;
+      File(int _fd): fd{_fd} { }
     };
   private:
     using StateType = std::variant<None, Pipe, Merge, File>;

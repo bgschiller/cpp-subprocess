@@ -5,6 +5,7 @@
 #include <variant>
 
 #include "PopenError.hpp"
+#include "SubprocessException.hpp"
 
 namespace subprocess {
   template<class T>
@@ -37,6 +38,11 @@ namespace subprocess {
     }
     T&& take_value() {
       return std::move(std::get<T>(_state));
+    }
+
+    T&& or_throw() {
+      if (!ok()) throw new SubprocessException(take_error().message.c_str());
+      return take_value();
     }
   };
 }
