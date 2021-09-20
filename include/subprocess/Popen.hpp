@@ -14,6 +14,7 @@
 #include "PopenError.hpp"
 #include "PrepExec.hpp"
 #include "Result.hpp"
+#include "vendor/fdstream.hpp"
 
 namespace subprocess {
 
@@ -77,9 +78,9 @@ namespace subprocess {
      */
     Result<std::optional<ExitStatus>> wait_timeout(std::chrono::milliseconds us);
 
-    FILE *std_in;
-    FILE *std_out;
-    FILE *std_err;
+    std::optional<boost::fdostream> std_in {std::nullopt};
+    std::optional<boost::fdistream> std_out {std::nullopt};
+    std::optional<boost::fdistream> std_err {std::nullopt};
 
     ChildState child_state;
     bool detached;
