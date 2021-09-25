@@ -17,11 +17,7 @@ Result<Popen> Popen::create(const std::vector<std::string>& argv, const PopenCon
   if (argv.size() == 0) {
     return PopenError{PopenError::LogicError, "argv must not be empty"};
   }
-  Popen inst{
-    nullptr, nullptr, nullptr,
-    ChildState::Preparing(),
-    cfg.detached
-  };
+  Popen inst{ ChildState::Preparing(), cfg.detached };
   auto res = inst.os_start(argv, cfg);
   if (res.has_value()) {
     return *res;
@@ -29,7 +25,7 @@ Result<Popen> Popen::create(const std::vector<std::string>& argv, const PopenCon
   return Result<Popen>{std::move(inst)};
 }
 
-Result<boost::fdostream&&> prepare_pipe_to_child(int& child_end) {
+Result<boost::fdostream> prepare_pipe_to_child(int& child_end) {
   auto pi = pipe();
   if (!pi.ok()) return pi.take_error();
   auto [read, write] = pi.take_value();
@@ -39,7 +35,7 @@ Result<boost::fdostream&&> prepare_pipe_to_child(int& child_end) {
   return std::move(boost::fdostream(parent_end));
 }
 
-Result<boost::fdistream&&> prepare_pipe_from_child(int& child_end) {
+Result<boost::fdistream> prepare_pipe_from_child(int& child_end) {
   auto pi = pipe();
   if (!pi.ok()) return pi.take_error();
   auto [read, write] = pi.take_value();
@@ -68,14 +64,14 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stin, Redirec
 
   {
     Result<const std::nullopt_t> res = stin.match(
-      [&, this](const Redirection::Pipe&){
+      [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
         auto stream = prepare_pipe_to_child(child_stdin);
         if (!stream.ok()) return stream.take_error();
         this->std_in = stream.take_value();
         return std::nullopt;
       },
       [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdin); },
-      [&](const Redirection::Merge&){
+      [&](const Redirection::Merge&) -> Result<const std::nullopt_t> {
         return PopenError{PopenError::LogicError, "Redirection::Merge not valid for stdin"};
       },
       []{ /* inherit fds */ return std::nullopt; }
@@ -85,7 +81,7 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stin, Redirec
 
   {
     Result<const std::nullopt_t> res = stout.match(
-      [&, this](const Redirection::Pipe&){
+      [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
         auto stream = prepare_pipe_from_child(child_stdout);
         if (!stream.ok()) return stream.take_error();
         this->std_out = stream.take_value();
@@ -100,7 +96,7 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stin, Redirec
 
   {
     Result<const std::nullopt_t> res = sterr.match(
-      [&, this](const Redirection::Pipe&){
+      [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
         auto stream = prepare_pipe_from_child(child_stderr);
         if (!stream.ok()) return stream.take_error();
         this->std_err = stream.take_value();

@@ -78,12 +78,13 @@ namespace subprocess {
      */
     Result<std::optional<ExitStatus>> wait_timeout(std::chrono::milliseconds us);
 
+    ChildState child_state;
+    bool detached;
+
     std::optional<boost::fdostream> std_in {std::nullopt};
     std::optional<boost::fdistream> std_out {std::nullopt};
     std::optional<boost::fdistream> std_err {std::nullopt};
 
-    ChildState child_state;
-    bool detached;
    private:
     std::optional<PopenError> os_start(const std::vector<std::string>& argv, const PopenConfig& cfg);
     // Create the pipes requested by stdin, stdout, and stderr from

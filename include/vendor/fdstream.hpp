@@ -62,8 +62,19 @@ class fdoutbuf : public std::streambuf {
     int fd;    // file descriptor
   public:
     // constructor
-    fdoutbuf (int _fd) : fd(_fd) {
+    fdoutbuf (int _fd)
+    : fd(_fd)
+    { }
+
+    fdoutbuf (fdoutbuf&& other)
+    : fd(other.fd)
+    { }
+
+    fdoutbuf& operator=(fdoutbuf&& other) {
+      fd = other.fd;
+      return *this;
     }
+
   protected:
     // write one character
     virtual int_type overflow (int_type c) {
@@ -89,6 +100,16 @@ class fdostream : public std::ostream {
   public:
     fdostream (int fd) : std::ostream(0), buf(fd) {
         rdbuf(&buf);
+    }
+
+    fdostream (fdostream&& other)
+    : std::ostream(0)
+    , buf{std::move(other.buf)}
+    { }
+
+    fdostream& operator=(fdostream&& other) {
+      buf = std::move(other.buf);
+      return *this;
     }
 };
 
@@ -123,13 +144,31 @@ class fdinbuf : public std::streambuf {
               buffer+pbSize);    // end position
     }
 
+    fdinbuf (fdinbuf&& other)
+    : fd{other.fd}
+    {
+      std::cerr << "move ctor of fdinbuf. moving '" << std::string(other.eback(), static_cast<long unsigned int>(other.egptr() - other.eback())) << "' to new fdinbuf\n";
+      std::move(other.eback(), other.egptr(), buffer);
+      setg(other.eback(), other.gptr(), other.egptr());
+      std::cerr << "new contents: '" << std::string(eback(), static_cast<long unsigned int>(egptr() - eback())) << "'\n";
+    }
+
+    fdinbuf& operator=(fdinbuf&& other) {
+      fd = other.fd;
+      std::cerr << "move ctor of fdinbuf. moving '" << std::string(other.eback(), static_cast<long unsigned int>(other.egptr() - other.eback())) << "' to new fdinbuf\n";
+      std::move(other.eback(), other.egptr(), buffer);
+      setg(other.eback(), other.gptr(), other.egptr());
+      std::cerr << "new contents: '" << std::string(eback(), static_cast<long unsigned int>(egptr() - eback())) << "'\n";
+      return *this;
+    }
+
   protected:
     // insert new characters into the buffer
     virtual int_type underflow () {
 #ifndef _MSC_VER
         using std::memmove;
 #endif
-
+      std::cerr << "top of underflow()\n";
         // is read position before end of buffer?
         if (gptr() < egptr()) {
             return traits_type::to_int_type(*gptr());
@@ -139,7 +178,7 @@ class fdinbuf : public std::streambuf {
          * - use number of characters read
          * - but at most size of putback area
          */
-        size_t numPutback = gptr() - eback();
+        size_t numPutback = static_cast<size_t>(gptr() - eback());
         if (numPutback > pbSize) {
             numPutback = pbSize;
         }
@@ -149,7 +188,7 @@ class fdinbuf : public std::streambuf {
          */
         memmove (buffer+(pbSize-numPutback), gptr()-numPutback,
                 numPutback);
-
+        std::cerr << "invoking read\n";
         // read at most bufSize new characters
         auto num = read (fd, buffer+pbSize, bufSize);
         if (num <= 0) {
@@ -173,6 +212,16 @@ class fdistream : public std::istream {
   public:
     fdistream (int fd) : std::istream(0), buf(fd) {
         rdbuf(&buf);
+    }
+
+    fdistream(fdistream&& other)
+    : std::istream(0)
+    , buf{std::move(other.buf)}
+    { }
+
+    fdistream& operator=(fdistream&& other) {
+      buf = std::move(other.buf);
+      return *this;
     }
 };
 
