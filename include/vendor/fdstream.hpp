@@ -104,8 +104,9 @@ class fdostream : public std::ostream {
 
     fdostream (fdostream&& other)
     : std::ostream(0)
-    , buf{std::move(other.buf)}
-    { }
+      , buf{std::move(other.buf)} {
+        rdbuf(&buf);
+      }
 
     fdostream& operator=(fdostream&& other) {
       buf = std::move(other.buf);
@@ -147,18 +148,14 @@ class fdinbuf : public std::streambuf {
     fdinbuf (fdinbuf&& other)
     : fd{other.fd}
     {
-      std::cerr << "move ctor of fdinbuf. moving '" << std::string(other.eback(), static_cast<long unsigned int>(other.egptr() - other.eback())) << "' to new fdinbuf\n";
       std::move(other.eback(), other.egptr(), buffer);
       setg(other.eback(), other.gptr(), other.egptr());
-      std::cerr << "new contents: '" << std::string(eback(), static_cast<long unsigned int>(egptr() - eback())) << "'\n";
     }
 
     fdinbuf& operator=(fdinbuf&& other) {
       fd = other.fd;
-      std::cerr << "move ctor of fdinbuf. moving '" << std::string(other.eback(), static_cast<long unsigned int>(other.egptr() - other.eback())) << "' to new fdinbuf\n";
       std::move(other.eback(), other.egptr(), buffer);
       setg(other.eback(), other.gptr(), other.egptr());
-      std::cerr << "new contents: '" << std::string(eback(), static_cast<long unsigned int>(egptr() - eback())) << "'\n";
       return *this;
     }
 
@@ -168,7 +165,6 @@ class fdinbuf : public std::streambuf {
 #ifndef _MSC_VER
         using std::memmove;
 #endif
-      std::cerr << "top of underflow()\n";
         // is read position before end of buffer?
         if (gptr() < egptr()) {
             return traits_type::to_int_type(*gptr());
@@ -188,7 +184,6 @@ class fdinbuf : public std::streambuf {
          */
         memmove (buffer+(pbSize-numPutback), gptr()-numPutback,
                 numPutback);
-        std::cerr << "invoking read\n";
         // read at most bufSize new characters
         auto num = read (fd, buffer+pbSize, bufSize);
         if (num <= 0) {
@@ -216,13 +211,15 @@ class fdistream : public std::istream {
 
     fdistream(fdistream&& other)
     : std::istream(0)
-    , buf{std::move(other.buf)}
-    { }
+    , buf{std::move(other.buf)} {
+       rdbuf(&buf);
+    }
 
     fdistream& operator=(fdistream&& other) {
       buf = std::move(other.buf);
       return *this;
     }
+
 };
 
 

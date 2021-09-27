@@ -29,7 +29,7 @@ TEST_CASE("echo time") {
     std::string buf;
     REQUIRE_FALSE(echo.std_out->eof());
     std::getline(*echo.std_out, buf);
-    REQUIRE(buf == "yolo\n");
+    REQUIRE(buf == "yolo");
     auto exitR = echo.wait();
     REQUIRE(exitR.ok());
     auto exit = exitR.take_value();
