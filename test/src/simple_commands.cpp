@@ -36,29 +36,37 @@ TEST_CASE("echo time") {
     REQUIRE(exit.success());
   }
 
-  // SECTION("pipe input and output") {
-  //   PopenConfig config;
-  //   config.stdin = Redirection::Pipe();
-  //   config.stdout = Redirection::Pipe();
-  //   auto grepR = Popen::create({"grep", "apple"}, config);
-  //   REQUIRE(grepR.ok());
-  //   auto grep = grepR.take_value();
-  //   REQUIRE(grep.poll() == std::nullopt);
+  SECTION("pipe input and output") {
+    PopenConfig config;
+    config.stdin = Redirection::Pipe();
+    config.stdout = Redirection::Pipe();
+    auto grepR = Popen::create({"grep", "apple"}, config);
+    REQUIRE(grepR.ok());
+    auto grep = grepR.take_value();
+    REQUIRE(grep.poll() == std::nullopt);
 
-  //   std::string fruits = "apple\nbanana\npineapple\nlemon\n";
-  //   fprintf(grep.std_in, "%s", fruits.c_str());
-  //   fclose(grep.std_in);
+    std::cerr << "about to take grep's stdin\n";
+    REQUIRE(grep.std_in.has_value());
+    *grep.std_in << "apple\n"
+      << "banana\n"
+      << "pineapple\n"
+      << "lemon\n";
 
-  //   auto exitR = grep.wait();
-  //   REQUIRE(exitR.ok());
+    std::cerr << "grep claims stdin is open? " << grep.std_in->is_open() << std::endl;
+    std::cerr << "about to close grep's stdin\n";
+    grep.std_in->close();
+    std::cerr <<"about to wait for grep to complete\n";
 
-  //   auto exit = exitR.take_value();
-  //   REQUIRE(exit.success());
+    auto exitR = grep.wait();
 
-  //   char buf[20];
-  //   fread(buf, 20, 1, grep.std_out);
-  //   REQUIRE(buf == std::string("apple\npineapple\n"));
-  // }
+    std::cerr << "grep has completed\n";
+    REQUIRE(exitR.ok());
+
+    auto exit = exitR.take_value();
+    REQUIRE(exit.success());
+
+    REQUIRE(grep.std_out->slurp() == "apple\npineapple\n");
+  }
 
   // SECTION("input from file") {
   //   FILE* fruits = fopen("fruits.tmp", "w");

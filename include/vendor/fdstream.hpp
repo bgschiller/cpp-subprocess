@@ -29,6 +29,7 @@
 #include <istream>
 #include <ostream>
 #include <streambuf>
+#include <sstream>
 // for EOF:
 #include <cstdio>
 // for memmove():
@@ -60,19 +61,43 @@ namespace boost {
 class fdoutbuf : public std::streambuf {
   protected:
     int fd;    // file descriptor
+    bool _is_open;
   public:
     // constructor
     fdoutbuf (int _fd)
     : fd(_fd)
+    , _is_open{true}
     { }
 
     fdoutbuf (fdoutbuf&& other)
     : fd(other.fd)
-    { }
+    , _is_open{other._is_open}
+    {
+      if (this != &other) {
+        other._is_open = false; // prevent other's dtor from closing this fd.
+      }
+    }
+
+    virtual ~fdoutbuf() {
+      close();
+    }
 
     fdoutbuf& operator=(fdoutbuf&& other) {
       fd = other.fd;
+      _is_open = other._is_open;
+      if (this != &other) {
+        other._is_open = false; // prevent other's dtor from closing this fd.
+      }
       return *this;
+    }
+
+    bool is_open() const { return _is_open; }
+
+    void close() {
+      if (is_open()) {
+        ::close(fd);
+      }
+      _is_open = false;
     }
 
   protected:
@@ -112,6 +137,14 @@ class fdostream : public std::ostream {
       buf = std::move(other.buf);
       return *this;
     }
+
+    void close() {
+      buf.close();
+    }
+
+    bool is_open() const {
+      return buf.is_open();
+    }
 };
 
 
@@ -123,6 +156,7 @@ class fdostream : public std::ostream {
 class fdinbuf : public std::streambuf {
   protected:
     int fd;    // file descriptor
+    bool _is_open;
   protected:
     /* data buffer:
      * - at most, pbSize characters in putback area plus
@@ -139,7 +173,10 @@ class fdinbuf : public std::streambuf {
      * - no putback area
      * => force underflow()
      */
-    fdinbuf (int _fd) : fd(_fd) {
+    fdinbuf (int _fd)
+    : fd(_fd)
+    , _is_open{true}
+    {
         setg (buffer+pbSize,     // beginning of putback area
               buffer+pbSize,     // read position
               buffer+pbSize);    // end position
@@ -147,16 +184,37 @@ class fdinbuf : public std::streambuf {
 
     fdinbuf (fdinbuf&& other)
     : fd{other.fd}
+    , _is_open{other._is_open}
     {
-      std::move(other.eback(), other.egptr(), buffer);
-      setg(other.eback(), other.gptr(), other.egptr());
+      if (this != &other) {
+        std::move(other.eback(), other.egptr(), buffer);
+        setg(other.eback(), other.gptr(), other.egptr());
+        other._is_open = false;
+      }
+    }
+
+    virtual ~fdinbuf() {
+      close();
     }
 
     fdinbuf& operator=(fdinbuf&& other) {
-      fd = other.fd;
-      std::move(other.eback(), other.egptr(), buffer);
-      setg(other.eback(), other.gptr(), other.egptr());
+      if (this != &other) {
+        fd = other.fd;
+        _is_open = other._is_open;
+        std::move(other.eback(), other.egptr(), buffer);
+        setg(other.eback(), other.gptr(), other.egptr());
+        other._is_open = false;
+      }
       return *this;
+    }
+
+    bool is_open() const {
+      return _is_open;
+    }
+
+    void close() {
+      if (is_open()) ::close(fd);
+      _is_open = false;
     }
 
   protected:
@@ -220,6 +278,15 @@ class fdistream : public std::istream {
       return *this;
     }
 
+    std::string slurp() {
+      std::stringstream buffer;
+      buffer << rdbuf();
+      return buffer.str();
+    }
+
+    void close() {
+      dynamic_cast<fdoutbuf*>(rdbuf())->close();
+    }
 };
 
 
