@@ -70,7 +70,7 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stin, Redirec
         this->std_in = stream.take_value();
         return std::nullopt;
       },
-      [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdin); },
+      [&](const Redirection::FileDescriptor& file){ return prepare_file(file.fd, child_stdin); },
       [&](const Redirection::Merge&) -> Result<const std::nullopt_t> {
         return PopenError{PopenError::LogicError, "Redirection::Merge not valid for stdin"};
       },
@@ -87,7 +87,7 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stin, Redirec
         this->std_out = stream.take_value();
         return std::nullopt;
       },
-      [&](const Redirection::File& file){ return prepare_file(file.fd, child_stdout); },
+      [&](const Redirection::FileDescriptor& file){ return prepare_file(file.fd, child_stdout); },
       [&](const Redirection::Merge&) { merge = MergeKind::OutToErr; return std::nullopt; },
       []{ /* inherit fds */ return std::nullopt; }
     );
@@ -102,7 +102,7 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stin, Redirec
         this->std_err = stream.take_value();
         return std::nullopt;
       },
-      [&](const Redirection::File& file){ return prepare_file(file.fd, child_stderr); },
+      [&](const Redirection::FileDescriptor& file){ return prepare_file(file.fd, child_stderr); },
       [&](const Redirection::Merge&) { merge = MergeKind::ErrToOut; return std::nullopt; },
       []{ /* inherit fds */ return std::nullopt; }
     );

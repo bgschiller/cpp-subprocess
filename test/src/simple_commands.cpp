@@ -67,12 +67,18 @@ TEST_CASE("echo time") {
     FILE* fruits = fopen("fruits.tmp", "w");
     fprintf(fruits, "apple\nbanana\npineapple\nlemon\n");
     fclose(fruits);
-    int fruitsFd = open("fruits.tmp", O_RDONLY);
+
     PopenConfig config;
-    config.stdin = Redirection::File(fruitsFd);
+    SECTION("file descriptor") {
+      int fruitsFd = open("fruits.tmp", O_RDONLY);
+      config.stdin = Redirection::FileDescriptor(fruitsFd);
+    }
+    SECTION("shorthand") {
+      config.stdin = Redirection::Read("fruits.tmp").or_throw();
+    }
     config.stdout = Redirection::Pipe();
     auto grep = Popen::create({"grep", "apple"}, config).or_throw();
-    close(fruitsFd);
+    // close(fruitsFd);
 
     auto exit = grep.wait().or_throw();
     REQUIRE(exit.success());
@@ -80,7 +86,15 @@ TEST_CASE("echo time") {
     REQUIRE(grep.std_out->slurp() == "apple\npineapple\n");
   }
 
+  SECTION("Two process pipeline") {
+    FILE* veggies = fopen("veggies.tmp", "w");
+    fprintf(veggies, "brussels sprouts\nkale\ncarrots\nbroccoli\ncauliflower\neggplant\nspinach\n");
+    fclose(veggies);
+
+
+  }
+
   // SECTION("porcelain") {
-  //   auto res = Exec("echo yolo") | Exec("cat") > Redirection::File("output.txt")
+  //   auto res = Exec("echo yolo") | Exec("cat") > Redirection::Write("output.txt")
   // }
 }
