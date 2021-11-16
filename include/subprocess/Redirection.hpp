@@ -67,8 +67,32 @@ namespace subprocess {
     /// The field in `Popen` corresponding to the stream will be
     /// std::nullopt.
     struct FileDescriptor {
+    private:
+      bool _owned{false};
+    public:
       int fd;
-      FileDescriptor(int _fd): fd{_fd} { }
+      FileDescriptor(int _fd)
+      : fd{_fd}
+      , _owned{true}
+      { }
+      ~FileDescriptor()
+      {
+        if (_owned) ::close(fd);
+      }
+      FileDescriptor(const FileDescriptor& other) = delete;
+      FileDescriptor& operator=(const FileDescriptor& other) = delete;
+      FileDescriptor(FileDescriptor&& other)
+      : fd{other.fd)
+      : _owned{true}
+      {
+        other._owned = false;
+      }
+      FileDescriptor& operator=(FileDescriptor&& other)
+      {
+        std::swap(fd, other.fd);
+        std::swap(_owned, other._owned);
+        return *this;
+      }
     };
 
     /// Redirect the stream to/from the specified path, with other arguments as interpreted by open(2)
@@ -77,7 +101,7 @@ namespace subprocess {
     /// behind the scenes but provide reasonable defaults for the flags and mode
     /// arguments.
     static Result<Redirection> Open(const std::filesystem::path& path, int flags, mode_t mode) {
-      auto fd = open(path.c_str(), flags, mode);
+      auto fd = ::open(path.c_str(), flags, mode);
       if (fd < 0) {
         return PopenError{PopenError::ErrKind::IoError, std::string("open(): ") + std::to_string(errno) + std::string(" ") + strerror(errno)};
       }
@@ -122,16 +146,20 @@ namespace subprocess {
     : _state{std::forward<Args>(args)...}
     { }
 
-    Redirection(const Redirection& other)
-    : _state{other._state}
-    { }
+    // Redirection(const Redirection& other)
+    // : _state{other._state}
+    // { }
 
     Redirection(Redirection&& other)
     : _state{std::move(other._state)}
     { }
 
-    Redirection& operator=(const Redirection& other) {
-      _state = other._state;
+    // Redirection& operator=(const Redirection& other) {
+    //   _state = other._state;
+    //   return *this;
+    // }
+    Redirection& operator=(Redirection&& other) {
+      _state = std::move(other._state);
       return *this;
     }
 

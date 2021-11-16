@@ -78,7 +78,6 @@ TEST_CASE("echo time") {
     }
     config.stdout = Redirection::Pipe();
     auto grep = Popen::create({"grep", "apple"}, config).or_throw();
-    // close(fruitsFd);
 
     auto exit = grep.wait().or_throw();
     REQUIRE(exit.success());
