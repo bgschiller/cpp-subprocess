@@ -71,14 +71,13 @@ TEST_CASE("echo time") {
     PopenConfig config;
     SECTION("file descriptor") {
       int fruitsFd = open("fruits.tmp", O_RDONLY);
-      config.stdin = Redirection::FileDescriptor(fruitsFd);
+      config.stdin = std::move(Redirection::FileDescriptor(fruitsFd));
     }
     SECTION("shorthand") {
       config.stdin = Redirection::Read("fruits.tmp").or_throw();
     }
     config.stdout = Redirection::Pipe();
     auto grep = Popen::create({"grep", "apple"}, config).or_throw();
-
     auto exit = grep.wait().or_throw();
     REQUIRE(exit.success());
 
@@ -89,7 +88,6 @@ TEST_CASE("echo time") {
     FILE* veggies = fopen("veggies.tmp", "w");
     fprintf(veggies, "brussels sprouts\nkale\ncarrots\nbroccoli\ncauliflower\neggplant\nspinach\n");
     fclose(veggies);
-
 
   }
 

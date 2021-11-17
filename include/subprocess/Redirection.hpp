@@ -67,32 +67,20 @@ namespace subprocess {
     /// The field in `Popen` corresponding to the stream will be
     /// std::nullopt.
     struct FileDescriptor {
+      int fd;
     private:
       bool _owned{false};
+
+      void discard();
     public:
-      int fd;
-      FileDescriptor(int _fd)
-      : fd{_fd}
-      , _owned{true}
-      { }
-      ~FileDescriptor()
-      {
-        if (_owned) ::close(fd);
-      }
-      FileDescriptor(const FileDescriptor& other) = delete;
-      FileDescriptor& operator=(const FileDescriptor& other) = delete;
-      FileDescriptor(FileDescriptor&& other)
-      : fd{other.fd)
-      : _owned{true}
-      {
-        other._owned = false;
-      }
-      FileDescriptor& operator=(FileDescriptor&& other)
-      {
-        std::swap(fd, other.fd);
-        std::swap(_owned, other._owned);
-        return *this;
-      }
+      FileDescriptor(int _fd);
+      ~FileDescriptor();
+      FileDescriptor(const FileDescriptor& other);
+
+      FileDescriptor& operator=(const FileDescriptor& other);
+
+      FileDescriptor(FileDescriptor&& other);
+      FileDescriptor& operator=(FileDescriptor&& other);
     };
 
     /// Redirect the stream to/from the specified path, with other arguments as interpreted by open(2)
@@ -100,22 +88,14 @@ namespace subprocess {
     /// You probably want one of Read, Write, or Append, which use this method
     /// behind the scenes but provide reasonable defaults for the flags and mode
     /// arguments.
-    static Result<Redirection> Open(const std::filesystem::path& path, int flags, mode_t mode) {
-      auto fd = ::open(path.c_str(), flags, mode);
-      if (fd < 0) {
-        return PopenError{PopenError::ErrKind::IoError, std::string("open(): ") + std::to_string(errno) + std::string(" ") + strerror(errno)};
-      }
-      return Redirection{FileDescriptor(fd)};
-    }
+    static Result<Redirection> Open(const std::filesystem::path& path, int flags, mode_t mode);
 
     /// Read the stream from the specified path.
     ///
     /// If no file exists at that path, or it cannot be opened, return a PopenError.
     /// This method does not read any bytes of the file, it just holds onto
     /// the file descriptor to be passed into Popen.
-    static Result<Redirection> Read(const std::filesystem::path& path) {
-      return Open(path, O_RDONLY, 0);
-    }
+    static Result<Redirection> Read(const std::filesystem::path& path);
 
     /// Write the stream to the specified path.
     ///
@@ -123,9 +103,7 @@ namespace subprocess {
     /// have permission. Otherwise a PopenError will be returned.
     /// This method does not write any bytes of the file, it just holds onto
     /// the file descriptor to be passed into Popen.
-    static Result<Redirection> Write(const std::filesystem::path& path) {
-      return Open(path.c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0644);
-    }
+    static Result<Redirection> Write(const std::filesystem::path& path);
 
     /// Write the stream to the specified path.
     ///
@@ -133,9 +111,7 @@ namespace subprocess {
     /// have permission. Otherwise a PopenError will be returned.
     /// This method does not write any bytes of the file, it just holds onto
     /// the file descriptor to be passed into Popen.
-    static Result<Redirection> Append(const std::filesystem::path& path) {
-      return Open(path.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644);
-    }
+    static Result<Redirection> Append(const std::filesystem::path& path);
 
   private:
     using StateType = std::variant<None, Pipe, Merge, FileDescriptor>;
@@ -150,18 +126,13 @@ namespace subprocess {
     // : _state{other._state}
     // { }
 
-    Redirection(Redirection&& other)
-    : _state{std::move(other._state)}
-    { }
+    Redirection(Redirection&& other);
 
     // Redirection& operator=(const Redirection& other) {
     //   _state = other._state;
     //   return *this;
     // }
-    Redirection& operator=(Redirection&& other) {
-      _state = std::move(other._state);
-      return *this;
-    }
+    Redirection& operator=(Redirection&& other);
 
     template <typename T>
     bool is_a() const {
@@ -172,9 +143,7 @@ namespace subprocess {
       return std::get<T>(_state);
     }
 
-    std::string toString() {
-      return internal::variant_to_string(_state);
-    }
+    std::string toString() const;
 
     Result<const std::nullopt_t> match(
       std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,

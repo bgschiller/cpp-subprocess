@@ -58,7 +58,7 @@ enum class MergeKind {
 };
 
 
-Result<std::tuple<int, int, int>> Popen::setup_streams(Redirection stin, Redirection stout, Redirection sterr) {
+Result<std::tuple<int, int, int>> Popen::setup_streams(const Redirection&& stin, const Redirection&& stout, const Redirection&& sterr) {
   int child_stdin = 0, child_stdout = 1, child_stderr = 2;
   MergeKind merge = MergeKind::None;
 
@@ -126,7 +126,7 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
   set_inheritable(std::get<0>(exec_fail_pipe), false);
   set_inheritable(std::get<1>(exec_fail_pipe), false);
   {
-    auto child_endsR = setup_streams(config.stdin, config.stdout, config.stderr);
+    auto child_endsR = setup_streams(std::move(config.stdin), std::move(config.stdout), std::move(config.stderr));
     if (!child_endsR.ok()) return child_endsR.take_error();
     auto child_ends = child_endsR.take_value();
     std::optional<std::vector<std::string>> childEnv;
@@ -159,6 +159,7 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
       // if we are here, it means that exec has failed. Notify
       // the parent and exit.
       ::write(std::get<1>(exec_fail_pipe), &(result), sizeof(result));
+      ::close(std::get<1>(exec_fail_pipe));
       std::exit(127);
     } else {
       if (std::get<0>(child_ends) != 0) ::close(std::get<0>(child_ends));
@@ -170,6 +171,7 @@ std::optional<PopenError> Popen::os_start(const std::vector<std::string>& argv, 
   ::close(std::get<1>(exec_fail_pipe));
   int32_t err;
   auto readCnt = ::read(std::get<0>(exec_fail_pipe), &err, sizeof(err));
+  ::close(std::get<0>(exec_fail_pipe));
   if (readCnt == 0) {
     // no error written, ok
     return std::nullopt;
