@@ -6,6 +6,7 @@
 
 #include "subprocess/Popen.hpp"
 #include "subprocess/Redirection.hpp"
+#include "subprocess/posix.hpp"
 
 using namespace subprocess;
 
@@ -89,6 +90,22 @@ TEST_CASE("echo time") {
     fprintf(veggies, "brussels sprouts\nkale\ncarrots\nbroccoli\ncauliflower\neggplant\nspinach\n");
     fclose(veggies);
 
+    auto catToGrep = subprocess::pipe().or_throw();
+    PopenConfig catCfg;
+    catCfg.stdout = Redirection::FileDescriptor(std::get<1>(catToGrep));
+    PopenConfig grepCfg;
+    grepCfg.stdin = Redirection::FileDescriptor(std::get<0>(catToGrep));
+    grepCfg.stdout = Redirection::Pipe();
+
+    auto cat = Popen::create({"cat", "veggies.tmp"}, catCfg).or_throw();
+    auto grep = Popen::create({"grep", "sp"}, grepCfg).or_throw();
+    ::close(std::get<0>(catToGrep));
+    ::close(std::get<1>(catToGrep));
+    auto cExit = cat.wait().or_throw();
+    auto gExit = grep.wait().or_throw();
+    REQUIRE(gExit.success());
+    REQUIRE(cExit.success());
+    REQUIRE(grep.std_out->slurp() == "brussels sprouts\nspinach\n");
   }
 
   // SECTION("porcelain") {
