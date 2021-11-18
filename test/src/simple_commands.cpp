@@ -97,17 +97,12 @@ TEST_CASE("echo time") {
     grepCfg.stdin = Redirection::FileDescriptor(std::get<0>(catToGrep));
     grepCfg.stdout = Redirection::Pipe();
 
-    std::cout << "about to create grep\n";
-    auto grep = Popen::create({"grep", "sp"}, grepCfg).or_throw();
-    std::cout << "just created grep, about to create cat\n";
     auto cat = Popen::create({"cat", "veggies.tmp"}, catCfg).or_throw();
+    auto grep = Popen::create({"grep", "sp"}, grepCfg).or_throw();
     ::close(std::get<0>(catToGrep));
     ::close(std::get<1>(catToGrep));
-    std::cout << "created cat, about to wait on it\n";
     auto cExit = cat.wait().or_throw();
-    std::cout << "waited on cat, about to wait on grep\n";
     auto gExit = grep.wait().or_throw();
-    std::cout << "waited on grep\n";
     REQUIRE(gExit.success());
     REQUIRE(cExit.success());
     REQUIRE(grep.std_out->slurp() == "brussels sprouts\nspinach\n");
