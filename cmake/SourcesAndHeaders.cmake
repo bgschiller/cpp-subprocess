@@ -1,5 +1,6 @@
 set(sources
     src/ChildState.cpp
+    src/Exec.cpp
     src/ExitStatus.cpp
     src/Popen.cpp
     src/PopenConfig.cpp
@@ -17,6 +18,7 @@ set(headers
     include/subprocess/CaptureData.hpp
     include/subprocess/ChildState.hpp
     include/subprocess/Communicator.hpp
+    include/subprocess/Exec.hpp
     include/subprocess/ExitStatus.hpp
     include/subprocess/Popen.hpp
     include/subprocess/PopenConfig.hpp

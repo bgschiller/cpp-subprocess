@@ -107,8 +107,4 @@ TEST_CASE("echo time") {
     REQUIRE(cExit.success());
     REQUIRE(grep.std_out->slurp() == "brussels sprouts\nspinach\n");
   }
-
-  // SECTION("porcelain") {
-  //   auto res = Exec("echo yolo") | Exec("cat") > Redirection::Write("output.txt")
-  // }
 }
