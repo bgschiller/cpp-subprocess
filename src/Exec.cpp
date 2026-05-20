@@ -1,5 +1,7 @@
 #include "subprocess/Exec.hpp"
 
+#include "subprocess/Popen.hpp"
+
 namespace subprocess {
   Exec::Exec(
       std::string _command, std::vector<std::string> _args, PopenConfig _config,
@@ -141,5 +143,15 @@ namespace subprocess {
     }
     config.stderr = Redirection::Write("/dev/null").or_throw();
     return *this;
+  }
+
+  Result<Popen> Exec::popen() {
+    // Build argv: command is argv[0], followed by any extra args.
+    std::vector<std::string> argv;
+    argv.reserve(1 + args.size());
+    argv.push_back(command);
+    argv.insert(argv.end(), args.begin(), args.end());
+
+    return Popen::create(argv, config);
   }
 }  // namespace subprocess

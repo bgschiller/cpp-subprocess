@@ -4,8 +4,10 @@
 #include <optional>
 #include <string>
 
+#include "Popen.hpp"
 #include "PopenConfig.hpp"
 #include "Redirection.hpp"
+#include "Result.hpp"
 
 namespace subprocess {
 
@@ -165,6 +167,21 @@ namespace subprocess {
     /// [`NullFile`]: struct.NullFile.html
     Exec& stderr(Redirection capture);
     Exec& stderr(NullFile);
+
+    /// Launch the configured process and return a `Popen` handle.
+    ///
+    /// The argument list passed to the child is `[command] + args`, where
+    /// `command` is the value supplied to `Exec::cmd()` and `args` are any
+    /// arguments appended via `arg()` / `add_args()`.
+    ///
+    /// Any stdin data previously supplied via `Exec::stdin(const std::string&)`
+    /// or `Exec::stdin(const std::vector<uint8_t>&)` is **not** written by this
+    /// method; use `capture()` for that.  This method simply spawns the process
+    /// with the configured redirections and returns control to the caller.
+    ///
+    /// @returns `Result<Popen>` — on success, a handle to the running child
+    ///          process; on failure, a `PopenError` describing what went wrong.
+    Result<Popen> popen();
   };
 }  // namespace subprocess
 
