@@ -162,6 +162,77 @@ TEST_CASE("Popen destructor") {
   }
 }
 
+TEST_CASE("signal methods") {
+  SECTION("kill() terminates a running process with SIGKILL") {
+    auto p = subprocess::Popen::create({"sleep", "60"}, subprocess::PopenConfig{}).or_throw();
+    REQUIRE(p.pid().has_value());
+
+    auto sig_result = p.kill();
+    REQUIRE(sig_result.ok());
+
+    auto exit = p.wait().or_throw();
+    REQUIRE_FALSE(exit.success());
+    REQUIRE(exit.is_a<subprocess::ExitStatus::Signaled>());
+    REQUIRE(exit.get<subprocess::ExitStatus::Signaled>().signal == SIGKILL);
+  }
+
+  SECTION("terminate() sends SIGTERM to a running process") {
+    // Use a process that explicitly handles SIGTERM and exits non-zero
+    // so we can distinguish a signal death from a clean exit.
+    auto p = subprocess::Popen::create({"sleep", "60"}, subprocess::PopenConfig{}).or_throw();
+    REQUIRE(p.pid().has_value());
+
+    auto sig_result = p.terminate();
+    REQUIRE(sig_result.ok());
+
+    auto exit = p.wait().or_throw();
+    REQUIRE_FALSE(exit.success());
+    REQUIRE(exit.is_a<subprocess::ExitStatus::Signaled>());
+    REQUIRE(exit.get<subprocess::ExitStatus::Signaled>().signal == SIGTERM);
+  }
+
+  SECTION("send_signal() with an arbitrary signal") {
+    auto p = subprocess::Popen::create({"sleep", "60"}, subprocess::PopenConfig{}).or_throw();
+    REQUIRE(p.pid().has_value());
+
+    auto sig_result = p.send_signal(SIGUSR1);
+    REQUIRE(sig_result.ok());
+
+    // sleep exits when it receives SIGUSR1
+    auto exit = p.wait().or_throw();
+    REQUIRE(exit.is_a<subprocess::ExitStatus::Signaled>());
+    REQUIRE(exit.get<subprocess::ExitStatus::Signaled>().signal == SIGUSR1);
+  }
+
+  SECTION("send_signal() on a finished process returns LogicError") {
+    auto p = subprocess::Popen::create({"true"}, subprocess::PopenConfig{}).or_throw();
+    p.wait().or_throw();  // process has now finished
+
+    auto sig_result = p.send_signal(SIGTERM);
+    REQUIRE_FALSE(sig_result.ok());
+    auto err = sig_result.take_error();
+    REQUIRE(err.kind == subprocess::PopenError::LogicError);
+  }
+
+  SECTION("kill() on a finished process returns LogicError") {
+    auto p = subprocess::Popen::create({"true"}, subprocess::PopenConfig{}).or_throw();
+    p.wait().or_throw();
+
+    auto sig_result = p.kill();
+    REQUIRE_FALSE(sig_result.ok());
+    REQUIRE(sig_result.take_error().kind == subprocess::PopenError::LogicError);
+  }
+
+  SECTION("terminate() on a finished process returns LogicError") {
+    auto p = subprocess::Popen::create({"true"}, subprocess::PopenConfig{}).or_throw();
+    p.wait().or_throw();
+
+    auto sig_result = p.terminate();
+    REQUIRE_FALSE(sig_result.ok());
+    REQUIRE(sig_result.take_error().kind == subprocess::PopenError::LogicError);
+  }
+}
+
 TEST_CASE("exit status decoding") {
   SECTION("exit code 0 is success") {
     auto p = Popen::create({"true"}, PopenConfig{}).or_throw();

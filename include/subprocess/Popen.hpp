@@ -1,5 +1,6 @@
 #ifndef SUBPROCESS_POPEN_H_
 #define SUBPROCESS_POPEN_H_
+#include <signal.h>
 #include <stdio.h>
 
 #include <chrono>
@@ -47,6 +48,46 @@ namespace subprocess {
      * exit status is returned. This method is guaranteed not to block
      */
     std::optional<ExitStatus> poll();
+
+    /**
+     * Send an arbitrary signal to the process.
+     *
+     * Uses `::kill(pid, signum)` under the hood.  The caller is still
+     * responsible for reaping the child with `wait()` after the signal is
+     * delivered.
+     *
+     * # Errors
+     *
+     * Returns a `PopenError::LogicError` if the process is not in the
+     * `Running` state (i.e. it has already finished or was never started).
+     * Returns a `PopenError::IoError` if the underlying `kill(2)` syscall
+     * fails.
+     */
+    Result<std::nullopt_t> send_signal(int signum);
+
+    /**
+     * Send SIGTERM to the process.
+     *
+     * Thin wrapper around `send_signal(SIGTERM)`.  The process is given a
+     * chance to clean up; call `wait()` afterwards to reap it.
+     *
+     * # Errors
+     *
+     * See `send_signal()` for error conditions.
+     */
+    Result<std::nullopt_t> terminate();
+
+    /**
+     * Send SIGKILL to the process.
+     *
+     * Thin wrapper around `send_signal(SIGKILL)`.  The kernel terminates
+     * the process immediately; call `wait()` afterwards to reap it.
+     *
+     * # Errors
+     *
+     * See `send_signal()` for error conditions.
+     */
+    Result<std::nullopt_t> kill();
 
     /**
      * Return the exit status of the subprocess, if it is known to have finished.

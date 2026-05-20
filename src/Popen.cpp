@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -278,6 +279,29 @@ int32_t Popen::do_exec(
   return just_exec.exec();
 }
 
+
+Result<std::nullopt_t> Popen::send_signal(int signum) {
+#ifdef _WIN32
+  // TODO: implement using TerminateProcess() on Windows (ticket 12)
+  (void)signum;
+  return PopenError{PopenError::LogicError, "send_signal not implemented on Windows"};
+#else
+  if (!child_state.is_a<ChildState::Running>()) {
+    return PopenError{PopenError::LogicError,
+                      "send_signal: process is not running"};
+  }
+  pid_t p = child_state.get<ChildState::Running>().pid;
+  if (::kill(p, signum) != 0) {
+    return PopenError{PopenError::IoError,
+                      std::string("kill: ") + strerror(errno)};
+  }
+  return std::nullopt;
+#endif
+}
+
+Result<std::nullopt_t> Popen::terminate() { return send_signal(SIGTERM); }
+
+Result<std::nullopt_t> Popen::kill() { return send_signal(SIGKILL); }
 
 std::optional<ExitStatus> Popen::exit_status() const {
   if (child_state.is_a<ChildState::Finished>()) {
