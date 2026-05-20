@@ -23,7 +23,7 @@ It provides:
 ```
 include/subprocess/   Public headers (the library's API surface)
 src/                  Implementation (.cpp files, one per header)
-test/src/             GoogleTest unit tests
+test/src/             Catch2 unit tests
 cmake/                CMake helper modules
 tickets/              Plaintext work-item specifications (numbered)
 build/                Out-of-source build directory (git-ignored)
@@ -87,15 +87,17 @@ Test sources live in `test/src/`:
 
 | File                         | Coverage                                             |
 | ---------------------------- | ---------------------------------------------------- |
-| `main.cpp`                   | GoogleTest entry point                               |
+| `main.cpp`                   | Catch2 entry point (`CATCH_CONFIG_MAIN`)              |
 | `simple_commands.cpp`        | End-to-end `Popen` / pipeline tests                  |
 | `exec.cpp`                   | `Exec` builder tests (stub, expand as you implement) |
 | `ragged_cstr_array_test.cpp` | `RaggedCstrArray` unit tests                         |
+| `result_test.cpp`            | `Result<T>` unit tests                               |
 | `type_name_test.cpp`         | `type_name<T>()` utility tests                       |
 
-All new behaviour **must** have a corresponding test. Test files use the
-`subprocess` namespace without a `using` declaration — qualify types explicitly
-(e.g., `subprocess::Exec`, `subprocess::Popen`).
+All new behaviour **must** have a corresponding test. Tests use **Catch2**
+(`TEST_CASE` / `SECTION` / `REQUIRE`). Do not add a `using namespace` declaration
+at file scope — qualify types explicitly (e.g., `subprocess::Exec`,
+`subprocess::Popen`).
 
 ---
 
@@ -111,7 +113,7 @@ All new behaviour **must** have a corresponding test. Test files use the
 - **Static analysis:** `.clang-tidy` runs all checks with `WarningsAsErrors`.
   Fix every warning before opening a PR.
 - **Error handling:** use `Result<T>` — never throw raw pointers
-  (`throw new Foo` is a bug; use `throw Foo`). See `tickets/04-result-api-improvements.md`.
+  (`throw new Foo` is a bug; use `throw Foo`).
 - **Naming:** `snake_case` for variables, functions, and methods; `PascalCase`
   for types and classes; `UPPER_SNAKE_CASE` for macros only.
 - **Headers:** each public header must be self-contained and guarded with
