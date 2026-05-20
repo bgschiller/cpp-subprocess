@@ -46,7 +46,7 @@ namespace subprocess {
      *
      * nullopt means inherit the working directory from the parent.
      */
-    std::optional<std::string> cwd{ std::nullopt };
+    std::optional<std::filesystem::path> cwd{ std::nullopt };
 
     /// Set user ID for the subprocess.
     ///

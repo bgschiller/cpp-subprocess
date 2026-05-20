@@ -101,7 +101,7 @@ namespace subprocess {
     int32_t do_exec(
       PrepExec& just_exec,
       std::tuple<int, int, int> child_ends,
-      std::optional<std::string> cwd,
+      std::optional<std::filesystem::path> cwd,
       std::optional<uint32_t> setuid,
       std::optional<uint32_t> setgid,
       bool setpgid
