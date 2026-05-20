@@ -16,6 +16,12 @@ namespace subprocess {
     return exec;
   }
 
+  Exec Exec::shell(std::string cmdstr) {
+    Exec e = Exec::cmd("sh");
+    e.arg("-c").add_args({ std::move(cmdstr) });
+    return e;
+  }
+
   Exec& Exec::arg(std::string arg) {
     args.push_back(std::move(arg));
     return *this;

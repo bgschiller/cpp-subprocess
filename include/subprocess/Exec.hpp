@@ -68,7 +68,7 @@ namespace subprocess {
     /// prone to errors and, if `filename` comes from an untrusted
     /// source, to shell injection attacks.  Instead, use
     /// `Exec::cmd("sort").arg(filename)`.
-    // static Exec shell(std::string cmdstr);
+    static Exec shell(std::string cmdstr);
 
     /// Appends `arg` to argument list.
     Exec& arg(std::string arg);

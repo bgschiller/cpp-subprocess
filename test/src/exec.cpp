@@ -202,6 +202,50 @@ TEST_CASE("Exec::stream_stdin") {
   }
 }
 
+TEST_CASE("Exec::shell") {
+  SECTION("runs a simple shell expression and captures output") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::shell("echo hello world").capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->success());
+    REQUIRE(result->stdout == "hello world\n");
+  }
+
+  SECTION("shell features: command substitution") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::shell("echo $(echo nested)").capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->success());
+    REQUIRE(result->stdout == "nested\n");
+  }
+
+  SECTION("shell features: pipeline in string") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::shell("echo foo | tr a-z A-Z").capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->success());
+    REQUIRE(result->stdout == "FOO\n");
+  }
+
+  SECTION("non-zero exit status is reflected") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::shell("exit 3").capture();
+    REQUIRE(result.ok());
+    REQUIRE_FALSE(result->success());
+    REQUIRE(result->exit_status.is_a<subprocess::ExitStatus::Exited>());
+    REQUIRE(result->exit_status.get<subprocess::ExitStatus::Exited>().code == 3);
+  }
+
+  SECTION("stream_stdout works with shell") {
+    subprocess::Result<boost::fdistream> result =
+        subprocess::Exec::shell("echo streamed").stream_stdout();
+    REQUIRE(result.ok());
+    std::string line;
+    std::getline(*result, line);
+    REQUIRE(line == "streamed");
+  }
+}
+
 TEST_CASE("Exec::capture") {
   SECTION("captures stdout of a simple command") {
     subprocess::Result<subprocess::CaptureData> result =
