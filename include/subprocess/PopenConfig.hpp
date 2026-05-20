@@ -63,7 +63,7 @@ namespace subprocess {
     /// If specified, calls `setpgid(0, 0)` before execing the child process.
     //
     // Not to be confused with the similarly named `setgid`.
-    bool setpgid{false};
+    bool setpgid{ false };
 
     /// Returns the environment of the current process.
     ///

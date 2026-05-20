@@ -18,35 +18,33 @@ namespace subprocess {
     struct Finished {
       ExitStatus exit_status;
     };
-   private:
-    using StateType =  std::variant<Preparing, Running, Finished>;
-    StateType _state;
-   public:
 
+   private:
+    using StateType = std::variant<Preparing, Running, Finished>;
+    StateType _state;
+
+   public:
     template<typename... Args>
     ChildState(Args&&... args)
-    : _state{std::forward<Args>(args)...}
-    { }
+        : _state{ std::forward<Args>(args)... } { }
 
     ChildState(ChildState&& other);
     ChildState(const ChildState& other);
     ChildState& operator=(ChildState&& other);
 
-    template <typename T>
+    template<typename T>
     bool is_a() const {
       return std::holds_alternative<T>(_state);
     }
-    template <typename T>
+    template<typename T>
     T get() const {
       return std::get<T>(_state);
     }
 
     Result<const std::nullopt_t> match(
-      std::function<Result<const std::nullopt_t>(const Preparing&)> preparing_case,
-      std::function<Result<const std::nullopt_t>(const Running&)> running_case,
-      std::function<Result<const std::nullopt_t>(const Finished&)> finished_case
-    ) const;
-
+        std::function<Result<const std::nullopt_t>(const Preparing&)> preparing_case,
+        std::function<Result<const std::nullopt_t>(const Running&)> running_case,
+        std::function<Result<const std::nullopt_t>(const Finished&)> finished_case) const;
   };
 }  // namespace subprocess
 #endif

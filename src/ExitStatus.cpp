@@ -5,12 +5,9 @@
 using namespace subprocess;
 
 ExitStatus::ExitStatus(const ExitStatus& other)
-: _state{other._state}
-{ }
+    : _state{ other._state } { }
 ExitStatus::ExitStatus(ExitStatus&& other)
-: _state{std::move(other._state)}
-{ }
-
+    : _state{ std::move(other._state) } { }
 
 std::string ExitStatus::Exited::toString() const {
   return "subprocess::ExitStatus::Exited(" + std::to_string(code) + ")";
@@ -26,8 +23,8 @@ std::string ExitStatus::Other::toString() const {
 
 bool ExitStatus::success() const {
   return (
-    std::holds_alternative<ExitStatus::Exited>(_state) &&
-    std::get<ExitStatus::Exited>(_state).code == 0);
+      std::holds_alternative<ExitStatus::Exited>(_state) &&
+      std::get<ExitStatus::Exited>(_state).code == 0);
 }
 
 std::string ExitStatus::toString() const {

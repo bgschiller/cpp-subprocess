@@ -1,8 +1,8 @@
 #ifndef SUBPROCESS_REDIRECTION_H_
 #define SUBPROCESS_REDIRECTION_H_
 #include <fcntl.h>
-#include <string.h>
 #include <stdint.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <filesystem>
@@ -11,8 +11,8 @@
 #include <optional>
 #include <variant>
 
-#include "subprocess/variant_helpers.hpp"
 #include "subprocess/Result.hpp"
+#include "subprocess/variant_helpers.hpp"
 
 namespace subprocess {
 
@@ -68,11 +68,13 @@ namespace subprocess {
     /// std::nullopt.
     struct FileDescriptor {
       int fd;
-    private:
-      bool _owned{false};
+
+     private:
+      bool _owned{ false };
 
       void discard();
-    public:
+
+     public:
       FileDescriptor(int _fd);
       ~FileDescriptor();
       FileDescriptor(const FileDescriptor& other);
@@ -83,7 +85,8 @@ namespace subprocess {
       FileDescriptor& operator=(FileDescriptor&& other);
     };
 
-    /// Redirect the stream to/from the specified path, with other arguments as interpreted by open(2)
+    /// Redirect the stream to/from the specified path, with other arguments as interpreted by
+    /// open(2)
     ///
     /// You probably want one of Read, Write, or Append, which use this method
     /// behind the scenes but provide reasonable defaults for the flags and mode
@@ -113,14 +116,14 @@ namespace subprocess {
     /// the file descriptor to be passed into Popen.
     static Result<Redirection> Append(const std::filesystem::path& path);
 
-  private:
+   private:
     using StateType = std::variant<None, Pipe, Merge, FileDescriptor>;
     StateType _state;
-  public:
+
+   public:
     template<typename... Args>
     Redirection(Args&&... args)
-    : _state{std::forward<Args>(args)...}
-    { }
+        : _state{ std::forward<Args>(args)... } { }
 
     // Redirection(const Redirection& other)
     // : _state{other._state}
@@ -134,11 +137,11 @@ namespace subprocess {
     // }
     Redirection& operator=(Redirection&& other);
 
-    template <typename T>
+    template<typename T>
     bool is_a() const {
       return std::holds_alternative<T>(_state);
     }
-    template <typename T>
+    template<typename T>
     T get() const {
       return std::get<T>(_state);
     }
@@ -146,11 +149,10 @@ namespace subprocess {
     std::string toString() const;
 
     Result<const std::nullopt_t> match(
-      std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,
-      std::function<Result<const std::nullopt_t>(const FileDescriptor&)> file_case,
-      std::function<Result<const std::nullopt_t>(const Merge&)> merge_case,
-      std::function<Result<const std::nullopt_t>()> none_case
-    ) const;
+        std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,
+        std::function<Result<const std::nullopt_t>(const FileDescriptor&)> file_case,
+        std::function<Result<const std::nullopt_t>(const Merge&)> merge_case,
+        std::function<Result<const std::nullopt_t>()> none_case) const;
   };
 }  // namespace subprocess
 #endif

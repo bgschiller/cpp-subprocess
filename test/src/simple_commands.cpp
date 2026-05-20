@@ -5,6 +5,7 @@
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <vector>
 
 #include "subprocess/Popen.hpp"
 #include "subprocess/Redirection.hpp"
@@ -230,6 +231,100 @@ TEST_CASE("signal methods") {
     auto sig_result = p.terminate();
     REQUIRE_FALSE(sig_result.ok());
     REQUIRE(sig_result.take_error().kind == subprocess::PopenError::LogicError);
+  }
+}
+
+TEST_CASE("Popen::communicate") {
+  SECTION("captures stdout with no stdin") {
+    subprocess::PopenConfig cfg;
+    cfg.stdout = subprocess::Redirection::Pipe();
+    auto p = subprocess::Popen::create({"echo", "hello"}, cfg).or_throw();
+    auto result = p.communicate().or_throw();
+    REQUIRE(result.stdout == "hello\n");
+    REQUIRE(result.stderr.empty());
+    REQUIRE(result.success());
+  }
+
+  SECTION("sends stdin input and captures stdout") {
+    subprocess::PopenConfig cfg;
+    cfg.stdin = subprocess::Redirection::Pipe();
+    cfg.stdout = subprocess::Redirection::Pipe();
+    auto p = subprocess::Popen::create({"cat"}, cfg).or_throw();
+    auto result = p.communicate("hello world").or_throw();
+    REQUIRE(result.stdout == "hello world");
+    REQUIRE(result.success());
+  }
+
+  SECTION("captures both stdout and stderr") {
+    subprocess::PopenConfig cfg;
+    cfg.stdout = subprocess::Redirection::Pipe();
+    cfg.stderr = subprocess::Redirection::Pipe();
+    auto p =
+        subprocess::Popen::create(
+            {"/bin/sh", "-c", "echo out; echo err >&2"}, cfg)
+            .or_throw();
+    auto result = p.communicate().or_throw();
+    REQUIRE(result.stdout == "out\n");
+    REQUIRE(result.stderr == "err\n");
+    REQUIRE(result.success());
+  }
+
+  SECTION("large input does not deadlock") {
+    // 1 MB of data — well above the typical pipe buffer size (~64 KB).
+    subprocess::PopenConfig cfg;
+    cfg.stdin = subprocess::Redirection::Pipe();
+    cfg.stdout = subprocess::Redirection::Pipe();
+    auto p = subprocess::Popen::create({"cat"}, cfg).or_throw();
+    std::string big_input(1024 * 1024, 'x');
+    auto result = p.communicate(big_input).or_throw();
+    REQUIRE(result.stdout == big_input);
+    REQUIRE(result.success());
+  }
+
+  SECTION("communicate_bytes with binary data") {
+    subprocess::PopenConfig cfg;
+    cfg.stdin = subprocess::Redirection::Pipe();
+    cfg.stdout = subprocess::Redirection::Pipe();
+    auto p = subprocess::Popen::create({"cat"}, cfg).or_throw();
+    std::vector<uint8_t> data = { 0x00, 0x01, 0xFF, 0x7F };
+    auto result = p.communicate_bytes(data).or_throw();
+    REQUIRE(result.stdout.size() == 4);
+    REQUIRE(static_cast<uint8_t>(result.stdout[0]) == 0x00);
+    REQUIRE(static_cast<uint8_t>(result.stdout[1]) == 0x01);
+    REQUIRE(static_cast<uint8_t>(result.stdout[2]) == 0xFF);
+    REQUIRE(static_cast<uint8_t>(result.stdout[3]) == 0x7F);
+    REQUIRE(result.success());
+  }
+
+  SECTION("input without stdin pipe returns LogicError") {
+    subprocess::PopenConfig cfg;
+    // stdin is NOT a pipe
+    auto p = subprocess::Popen::create({"true"}, cfg).or_throw();
+    auto result = p.communicate("some input");
+    REQUIRE_FALSE(result.ok());
+    REQUIRE(result.take_error().kind == subprocess::PopenError::LogicError);
+    // Process still needs to be waited on after the failed communicate().
+    p.wait();
+  }
+
+  SECTION("communicate with no pipes just waits") {
+    subprocess::PopenConfig cfg;
+    auto p = subprocess::Popen::create({"true"}, cfg).or_throw();
+    auto result = p.communicate().or_throw();
+    REQUIRE(result.stdout.empty());
+    REQUIRE(result.stderr.empty());
+    REQUIRE(result.success());
+  }
+
+  SECTION("communicate propagates non-zero exit status") {
+    subprocess::PopenConfig cfg;
+    cfg.stdout = subprocess::Redirection::Pipe();
+    auto p =
+        subprocess::Popen::create({"/bin/sh", "-c", "exit 42"}, cfg).or_throw();
+    auto result = p.communicate().or_throw();
+    REQUIRE_FALSE(result.success());
+    REQUIRE(result.exit_status.is_a<subprocess::ExitStatus::Exited>());
+    REQUIRE(result.exit_status.get<subprocess::ExitStatus::Exited>().code == 42);
   }
 }
 

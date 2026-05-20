@@ -46,21 +46,21 @@ namespace subprocess {
      * calls `waitpid()` on the PID of the child process.
      */
     struct Undetermined { };
+
    private:
     using StateType = std::variant<Exited, Signaled, Other, Undetermined>;
     StateType _state;
-   public:
 
+   public:
     template<typename... Args>
     ExitStatus(Args&&... args)
-    : _state{std::forward<Args>(args)...}
-    { }
+        : _state{ std::forward<Args>(args)... } { }
 
-    template <typename T>
+    template<typename T>
     bool is_a() const {
       return std::holds_alternative<T>(_state);
     }
-    template <typename T>
+    template<typename T>
     T get() const {
       return std::get<T>(_state);
     }
@@ -72,7 +72,6 @@ namespace subprocess {
     std::string toString() const;
 
     ExitStatus& operator=(ExitStatus&& other);
-
   };
 }  // namespace subprocess
 #endif

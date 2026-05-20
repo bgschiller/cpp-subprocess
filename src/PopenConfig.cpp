@@ -1,6 +1,6 @@
 #include "subprocess/PopenConfig.hpp"
 
-extern char **environ;
+extern char** environ;
 
 using namespace subprocess;
 

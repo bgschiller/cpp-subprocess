@@ -6,22 +6,19 @@
 using namespace subprocess;
 
 PrepExec::PrepExec(
-  const std::string& _cmd,
-  const std::vector<std::string>& args,
-  const std::optional<std::vector<std::string>>& env
-)
-: cmd{_cmd}
-, argvec{args}
-{
+    const std::string& _cmd, const std::vector<std::string>& args,
+    const std::optional<std::vector<std::string>>& env)
+    : cmd{ _cmd }
+    , argvec{ args } {
   if (env.has_value()) {
-    envvec = RaggedCstrArray{*env};
+    envvec = RaggedCstrArray{ *env };
   }
 
   // Allocate enough room for "<pathdir>/<command>\0", pathdir
   // being the longest component of PATH.
-  size_t max_exe_len = cmd.size() + 2; // one for '/', one for '\0'
+  size_t max_exe_len = cmd.size() + 2;  // one for '/', one for '\0'
   if (cmd.find("/") == std::string::npos) {
-     // use the parent's PATH to determine what to exec
+    // use the parent's PATH to determine what to exec
     const char* searchPathRaw = std::getenv("PATH");
     if (searchPathRaw != nullptr) {
       searchpath = std::string(searchPathRaw);
@@ -51,24 +48,24 @@ int32_t PrepExec::exec() {
     // glibc provides one), so we have to iterate over PATH ourselves
     size_t start = 0;
     size_t end = searchpath->find(":");
-    while (start != std::string::npos) { // for each PATH component,
+    while (start != std::string::npos) {  // for each PATH component,
       // 1. build the full path to the executable, storing
       //   the value in prealloc_exe. prealloc_exe is guaranteed
-      //   to be as long as (longest PATH component + 1 for slash + exe name + 1 for null terminator)
-      //   (see ctor for prealloc_exe.reserve())
+      //   to be as long as (longest PATH component + 1 for slash + exe name + 1 for null
+      //   terminator) (see ctor for prealloc_exe.reserve())
       size_t ix = 0;
-      while (start < end) { // 1a. the PATH segment
+      while (start < end) {  // 1a. the PATH segment
         prealloc_exe[ix++] = searchpath->at(start++);
-      } // exit condition: start == end, the position of the next ":" or std::string::npos
+      }  // exit condition: start == end, the position of the next ":" or std::string::npos
       if (start != std::string::npos) {
         start++;
         end = searchpath->find(":", start);
       }
-      prealloc_exe[ix++] = '/'; // 1b. a seperating '/'
-      for (auto ch : cmd) { // 1c. the executable name
+      prealloc_exe[ix++] = '/';  // 1b. a seperating '/'
+      for (auto ch : cmd) {      // 1c. the executable name
         prealloc_exe[ix++] = ch;
       }
-      prealloc_exe[ix] = '\0'; // 1d. a null-terminator
+      prealloc_exe[ix] = '\0';  // 1d. a null-terminator
 
       // 2. try to exec.
       errCode = libc_exec();
@@ -81,7 +78,7 @@ int32_t PrepExec::exec() {
   }
 
   size_t ix = 0;
-  for (auto ch: cmd) {
+  for (auto ch : cmd) {
     prealloc_exe[ix++] = ch;
   }
   prealloc_exe[ix] = '\0';

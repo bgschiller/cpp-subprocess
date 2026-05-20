@@ -20,21 +20,19 @@ namespace subprocess {
   /// [`stderr`]: struct.Exec.html#method.stderr
   /// [`Exec`]: struct.Exec.html
   /// [`Pipeline`]: struct.Pipeline.html
-  struct NullFile {};
+  struct NullFile { };
 
   class Exec {
-  private:
+   private:
     Exec(
-      std::string command,
-      std::vector<std::string> args,
-      PopenConfig config,
-      std::optional<std::vector<uint8_t>> stdin_data
-    );
+        std::string command, std::vector<std::string> args, PopenConfig config,
+        std::optional<std::vector<uint8_t>> stdin_data);
     std::string command;
     std::vector<std::string> args;
     PopenConfig config;
     std::optional<std::vector<uint8_t>> stdin_data;
-  public:
+
+   public:
     Exec() = delete;
     /// Constructs a new `Exec`, configured to run `command`.
     ///
@@ -47,7 +45,6 @@ namespace subprocess {
     ///
     /// [`Exec::shell`]: struct.Exec.html#method.shell
     static Exec cmd(std::string command);
-
 
     /// Constructs a new `Exec`, configured to run `cmdstr` with
     /// the system shell.
@@ -69,7 +66,6 @@ namespace subprocess {
     /// `Exec::cmd("sort").arg(filename)`.
     // static Exec shell(std::string cmdstr);
 
-
     /// Appends `arg` to argument list.
     Exec& arg(std::string arg);
 
@@ -83,10 +79,10 @@ namespace subprocess {
     /// scope.
     Exec& detached();
 
-private:
+   private:
     void ensure_env();
 
-public:
+   public:
     /// Clears the environment of the subprocess.
     ///
     /// When this is invoked, the subprocess will not inherit the
@@ -102,7 +98,6 @@ public:
     /// the current process.  If this is undesirable, call
     /// `env_clear` first.
     Exec& env(const std::string& key, const std::string& value);
-
 
     /// Sets multiple environment variables in the child process.
     ///
@@ -170,8 +165,7 @@ public:
     /// [`NullFile`]: struct.NullFile.html
     Exec& stderr(Redirection capture);
     Exec& stderr(NullFile);
-
   };
-}
+}  // namespace subprocess
 
 #endif

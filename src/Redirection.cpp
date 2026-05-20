@@ -12,17 +12,12 @@ void Redirection::FileDescriptor::discard() {
   }
 }
 Redirection::FileDescriptor::FileDescriptor(int _fd)
-: fd{_fd}
-, _owned{true}
-{ }
-Redirection::FileDescriptor::~FileDescriptor()
-{
-  discard();
-}
+    : fd{ _fd }
+    , _owned{ true } { }
+Redirection::FileDescriptor::~FileDescriptor() { discard(); }
 Redirection::FileDescriptor::FileDescriptor(const FileDescriptor& other)
-: fd{other.fd}
-, _owned{false}
-{ }
+    : fd{ other.fd }
+    , _owned{ false } { }
 Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(const FileDescriptor& other) {
   discard();
   fd = other.fd;
@@ -31,13 +26,11 @@ Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(const FileDe
 }
 
 Redirection::FileDescriptor::FileDescriptor(FileDescriptor&& other)
-: fd{other.fd}
-, _owned{true}
-{
+    : fd{ other.fd }
+    , _owned{ true } {
   other._owned = false;
 }
-Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(FileDescriptor&& other)
-{
+Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(FileDescriptor&& other) {
   discard();
   fd = other.fd;
   _owned = other._owned;
@@ -48,9 +41,11 @@ Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(FileDescript
 Result<Redirection> Redirection::Open(const std::filesystem::path& path, int flags, mode_t mode) {
   auto fd = ::open(path.c_str(), flags, mode);
   if (fd < 0) {
-    return PopenError{PopenError::ErrKind::IoError, std::string("open(): ") + std::to_string(errno) + std::string(" ") + strerror(errno)};
+    return PopenError{ PopenError::ErrKind::IoError, std::string("open(): ") +
+                                                         std::to_string(errno) + std::string(" ") +
+                                                         strerror(errno) };
   }
-  return Redirection{Redirection::FileDescriptor(fd)};
+  return Redirection{ Redirection::FileDescriptor(fd) };
 }
 
 Result<Redirection> Redirection::Read(const std::filesystem::path& path) {
@@ -66,26 +61,20 @@ Result<Redirection> Redirection::Append(const std::filesystem::path& path) {
 }
 
 Redirection::Redirection(Redirection&& other)
-: _state{std::move(other._state)}
-{ }
+    : _state{ std::move(other._state) } { }
 
 Redirection& Redirection::operator=(Redirection&& other) {
   _state = std::move(other._state);
   return *this;
 }
 
-std::string Redirection::toString() const {
-  return internal::variant_to_string(_state);
-}
-
-
+std::string Redirection::toString() const { return internal::variant_to_string(_state); }
 
 Result<const std::nullopt_t> Redirection::match(
-  std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,
-  std::function<Result<const std::nullopt_t>(const FileDescriptor&)> file_case,
-  std::function<Result<const std::nullopt_t>(const Merge&)> merge_case,
-  std::function<Result<const std::nullopt_t>()> none_case
-) const {
+    std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,
+    std::function<Result<const std::nullopt_t>(const FileDescriptor&)> file_case,
+    std::function<Result<const std::nullopt_t>(const Merge&)> merge_case,
+    std::function<Result<const std::nullopt_t>()> none_case) const {
   if (is_a<Pipe>()) return pipe_case(get<Pipe>());
   if (is_a<FileDescriptor>()) return file_case(get<FileDescriptor>());
   if (is_a<Merge>()) return merge_case(get<Merge>());
