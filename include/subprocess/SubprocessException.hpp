@@ -1,6 +1,6 @@
 #ifndef SUBPROCESS_EXCEPTION_H_
 #define SUBPROCESS_EXCEPTION_H_
-#include <exception>
+#include <stdexcept>
 
 namespace subprocess {
   struct SubprocessException: public std::runtime_error {
