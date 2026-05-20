@@ -25,6 +25,46 @@ Result<Popen> Popen::create(const std::vector<std::string>& argv, const PopenCon
   return Result<Popen>{std::move(inst)};
 }
 
+Popen::~Popen() {
+  if (!alive_ || detached) {
+    return;
+  }
+  // Close all open pipe ends so that a child blocked on stdin gets EOF
+  // and any buffered data is flushed before we wait.
+  std_in.reset();
+  std_out.reset();
+  std_err.reset();
+  // Reap the child if it has not already been waited on.
+  if (child_state.is_a<ChildState::Running>()) {
+    wait();  // errors are silently ignored inside a destructor
+  }
+}
+
+Popen::Popen(Popen&& other) noexcept
+    : child_state{std::move(other.child_state)},
+      detached{other.detached},
+      std_in{std::move(other.std_in)},
+      std_out{std::move(other.std_out)},
+      std_err{std::move(other.std_err)},
+      alive_{other.alive_} {
+  // Mark the donor as dead so its destructor is a no-op.  We deliberately
+  // do not touch `other.detached` — it retains its caller-visible meaning.
+  other.alive_ = false;
+}
+
+Popen& Popen::operator=(Popen&& other) noexcept {
+  if (this != &other) {
+    child_state = std::move(other.child_state);
+    detached = other.detached;
+    std_in = std::move(other.std_in);
+    std_out = std::move(other.std_out);
+    std_err = std::move(other.std_err);
+    alive_ = other.alive_;
+    other.alive_ = false;
+  }
+  return *this;
+}
+
 Result<boost::fdostream> prepare_pipe_to_child(int& child_end) {
   auto pi = pipe();
   if (!pi.ok()) return pi.take_error();

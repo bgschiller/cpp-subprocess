@@ -3,6 +3,7 @@
 #include <optional>
 #include <signal.h>
 #include <string>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "subprocess/Popen.hpp"
@@ -107,6 +108,57 @@ TEST_CASE("echo time") {
     REQUIRE(gExit.success());
     REQUIRE(cExit.success());
     REQUIRE(grep.std_out->slurp() == "brussels sprouts\nspinach\n");
+  }
+}
+
+TEST_CASE("Popen destructor") {
+  SECTION("reaps child that was never explicitly waited on") {
+    // The child runs to completion and the destructor must call wait(),
+    // preventing it from becoming a zombie.
+    pid_t child_pid;
+    {
+      auto p = Popen::create({"true"}, PopenConfig{}).or_throw();
+      child_pid = p.pid().value();
+      // p goes out of scope here — destructor should reap the child.
+    }
+    // After the destructor ran, waitpid must fail with ECHILD,
+    // confirming there is no zombie.
+    int status = 0;
+    pid_t ret = ::waitpid(child_pid, &status, 0);
+    REQUIRE(ret == -1);
+    REQUIRE(errno == ECHILD);
+  }
+
+  SECTION("closes stdin pipe so a blocking child exits") {
+    // `cat` with a Pipe stdin blocks until EOF.  The destructor must close
+    // std_in (sending EOF) and then wait — without hanging.
+    PopenConfig cfg;
+    cfg.stdin = Redirection::Pipe();
+    {
+      auto p = Popen::create({"cat"}, cfg).or_throw();
+      // No data written, no explicit close.  Destructor handles everything.
+    }
+    // If execution reaches here the test passes (no hang).
+    REQUIRE(true);
+  }
+
+  SECTION("does nothing for a detached process") {
+    // A detached Popen must not be waited on, so we should be able to
+    // reap the child ourselves after the destructor returns.
+    PopenConfig cfg;
+    cfg.detached = true;
+    pid_t child_pid;
+    {
+      auto p = Popen::create({"true"}, cfg).or_throw();
+      child_pid = p.pid().value();
+      // Destructor must NOT call waitpid.
+    }
+    // Reap the child ourselves — this must succeed.
+    int status = 0;
+    pid_t ret = ::waitpid(child_pid, &status, 0);
+    REQUIRE(ret == child_pid);
+    REQUIRE(WIFEXITED(status));
+    REQUIRE(WEXITSTATUS(status) == 0);
   }
 }
 

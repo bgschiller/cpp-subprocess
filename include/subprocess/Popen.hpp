@@ -21,7 +21,9 @@ namespace subprocess {
   class Popen {
    public:
     Popen() = delete;
-    // TODO: make a destructor that closes any open std_in, std_err, std_out
+    ~Popen();
+    Popen(Popen&& other) noexcept;
+    Popen& operator=(Popen&& other) noexcept;
     static Result<Popen> create(const std::vector<std::string>& argv, const PopenConfig& cfg);
 
     /**
@@ -86,6 +88,13 @@ namespace subprocess {
     std::optional<boost::fdistream> std_err {std::nullopt};
 
    private:
+    // True for a fully constructed, non-moved-from instance.  The move
+    // constructor clears this on the donor so its destructor is a no-op,
+    // keeping the meaning of `detached` strictly caller-visible.
+    bool alive_{ true };
+
+    Popen(ChildState cs, bool det) : child_state{std::move(cs)}, detached{det} {}
+
     std::optional<PopenError> os_start(const std::vector<std::string>& argv, const PopenConfig& cfg);
     // Create the pipes requested by stdin, stdout, and stderr from
     // the PopenConfig used to construct us, and return the file-
