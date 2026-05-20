@@ -1,136 +1,219 @@
-[![Actions Status](https://github.com/filipdutescu/modern-cpp-template/workflows/MacOS/badge.svg)](https://github.com/filipdutescu/modern-cpp-template/actions)
-[![Actions Status](https://github.com/filipdutescu/modern-cpp-template/workflows/Windows/badge.svg)](https://github.com/filipdutescu/modern-cpp-template/actions)
-[![Actions Status](https://github.com/filipdutescu/modern-cpp-template/workflows/Ubuntu/badge.svg)](https://github.com/filipdutescu/modern-cpp-template/actions)
-[![codecov](https://codecov.io/gh/filipdutescu/modern-cpp-template/branch/master/graph/badge.svg)](https://codecov.io/gh/filipdutescu/modern-cpp-template)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/filipdutescu/modern-cpp-template)](https://github.com/filipdutescu/modern-cpp-template/releases)
+# subprocess
 
-# Modern C++ Template
-
-A quick C++ template for modern CMake projects, aimed to be an easy to use
-starting point.
-
-This is my personal take on such a type of template, thus I might not use the
-best practices or you might disagree with how I do things. Any and all feedback
-is greatly appreciated!
+A C++17 library for spawning and managing child processes, modelled on the
+[Rust `subprocess` crate](https://docs.rs/subprocess).
 
 ## Features
 
-* Modern **CMake** configuration and project, which, to the best of my
-knowledge, uses the best practices,
+- **`Popen`** — low-level handle to a child process. Supports pipes for
+  stdin/stdout/stderr, `wait`, `poll`, and `wait_timeout`.
+- **`Exec`** — fluent builder for configuring and launching a process with
+  argument lists, environment variables, working-directory overrides, and I/O
+  redirection.
+- **`Result<T>`** — lightweight error-or-value type used throughout the API
+  instead of exceptions.
+- **`Redirection`** — flexible I/O routing: pipes, file descriptors, paths
+  (read/write/append), `Merge` (`2>&1`), or inherited.
+- **`ExitStatus`** — discriminated union of `Exited`, `Signaled`, `Other`, and
+  `Undetermined`.
 
-* An example of a **Clang-Format** config, inspired from the base *Google* model,
-with minor tweaks. This is aimed only as a starting point, as coding style
-is a subjective matter, everyone is free to either delete it (for the *LLVM*
-default) or supply their own alternative,
+## Requirements
 
-* **Static analyzers** integration, with *Clang-Tidy* and *Cppcheck*, the former
-being the default option,
+- **CMake ≥ 3.15**
+- **C++17** compiler (GCC, Clang)
+- POSIX platform (Linux, macOS) — Windows support is planned
 
-* **Doxygen** support, through the `ENABLE_DOXYGEN` option, which you can enable
-if you wish to use it,
-
-* **Unit testing** support, through *GoogleTest* (with an option to enable
-*GoogleMock*) or *Catch2*,
-
-* **Code coverage**, enabled by using the `ENABLE_CODE_COVERAGE` option, through
-*Codecov* CI integration,
-
-* **Package manager support**, with *Conan* and *Vcpkg*, through their respective
-options
-
-* **CI workflows for Windows, Linux and MacOS** using *GitHub Actions*, making
-use of the caching features, to ensure minimum run time,
-
-* **.md templates** for: *README*, *Contributing Guideliness*,
-*Issues* and *Pull Requests*,
-
-* Options to build as a header-only library or executable, not just a static or
-shared library.
-
-* **Ccache** integration, for speeding up rebuild times
-
-## Getting Started
-
-These instructions will get you a copy of the project up and running on your local
-machine for development and testing purposes.
-
-### Prerequisites
-
-* **CMake v3.15+** - found at [https://cmake.org/](https://cmake.org/)
-
-* **C++ Compiler** - needs to support at least the **C++17** standard, i.e. *MSVC*,
-*GCC*, *Clang*
-
-> ***Note:*** *You also need to be able to provide ***CMake*** a supported
-[generator](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html).*
-
-### Installing
-
-Run the `install` target with CMake.
-For example:
+## Building
 
 ```bash
+# Library only
+cmake -Bbuild -DCMAKE_INSTALL_PREFIX=~/.local
+cmake --build build --config Release
+
+# Install
 cmake --build build --target install --config Release
-
-# a more general syntax for that command is:
-cmake --build <build_directory> --target install --config <desired_config>
 ```
 
-## Building the project
-
-To build the project, all you need to do, ***after correctly
-[installing the project](README.md#Installing)***, is run a similar **CMake** routine
-to the the one below:
+### Running the tests
 
 ```bash
-mkdir build/ && cd build/
-cmake .. -DCMAKE_INSTALL_PREFIX=/absolute/path/to/custom/install/directory
-cmake --build . --target install
+cmake -Bbuild -DSubprocess_ENABLE_UNIT_TESTING=1
+cmake --build build --config Release
+cd build && ctest -C Release -VV
 ```
 
-> ***Note:*** *The custom ``CMAKE_INSTALL_PREFIX`` can be omitted if you wish to
-install in [the default install location](https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html).*
-
-More options that you can set for the project can be found in the
-[`cmake/StandardSettings.cmake` file](cmake/StandardSettings.cmake). For certain
-options additional configuration may be needed in their respective `*.cmake` files
-(i.e. Conan needs the `CONAN_REQUIRES` and might need the `CONAN_OPTIONS` to be setup
-for it work correctly; the two are set in the [`cmake/Conan.cmake` file](cmake/Conan.cmake)).
-
-## Generating the documentation
-
-In order to generate documentation for the project, you need to configure the build
-to use Doxygen. This is easily done, by modifying the workflow shown above as follows:
+Or with the `Makefile` shorthand (cleans `build/` first):
 
 ```bash
-mkdir build/ && cd build/
-cmake .. -D<project_name>_ENABLE_DOXYGEN=1 -DCMAKE_INSTALL_PREFIX=/absolute/path/to/custom/install/directory
-cmake --build . --target doxygen-docs
+make test
 ```
 
-> ***Note:*** *This will generate a `docs/` directory in the **project's root directory**.*
+## Usage
 
-## Running the tests
+All types live in the `subprocess` namespace. Link against `Subprocess::Subprocess`.
 
-By default, the template uses [Google Test](https://github.com/google/googletest/)
-for unit testing. Unit testing can be disabled in the options, by setting the
-`ENABLE_UNIT_TESTING` (from
-[cmake/StandardSettings.cmake](cmake/StandardSettings.cmake)) to be false. To run
-the tests, simply use CTest, from the build directory, passing the desire
-configuration for which to run tests for. An example of this procedure is:
+### Run a command and wait for it
 
-```bash
-cd build          # if not in the build directory already
-ctest -C Release  # or `ctest -C Debug` or any other configuration you wish to test
+```cpp
+#include "subprocess/Popen.hpp"
 
-# you can also run tests with the `-VV` flag for a more verbose output (i.e.
-#GoogleTest output as well)
+auto result = subprocess::Popen::create({"echo", "hello"}, subprocess::PopenConfig{});
+if (result.ok()) {
+    auto p = result.take_value();
+    auto exit = p.wait().or_throw();
+    assert(exit.success());
+}
 ```
 
-### End to end tests
+### Capture output with a pipe
 
-If applicable, should be presented here.
+```cpp
+subprocess::PopenConfig cfg;
+cfg.stdout = subprocess::Redirection::Pipe();
 
-### Coding style tests
+auto p = subprocess::Popen::create({"echo", "yolo"}, cfg).or_throw();
 
-If applicable, should be presented here.
+std::string line;
+std::getline(*p.std_out, line);   // line == "yolo"
+
+p.wait().or_throw();
+```
+
+### Write to stdin and read from stdout
+
+```cpp
+subprocess::PopenConfig cfg;
+cfg.stdin  = subprocess::Redirection::Pipe();
+cfg.stdout = subprocess::Redirection::Pipe();
+
+auto grep = subprocess::Popen::create({"grep", "apple"}, cfg).or_throw();
+
+*grep.std_in << "apple\nbanana\npineapple\nlemon\n";
+grep.std_in->close();
+
+auto exit = grep.wait().or_throw();
+assert(exit.success());
+
+std::string output = grep.std_out->slurp();
+// output == "apple\npineapple\n"
+```
+
+### Redirect stdin from a file
+
+```cpp
+subprocess::PopenConfig cfg;
+cfg.stdin  = subprocess::Redirection::Read("input.txt").or_throw();
+cfg.stdout = subprocess::Redirection::Pipe();
+
+auto p = subprocess::Popen::create({"grep", "foo"}, cfg).or_throw();
+p.wait().or_throw();
+```
+
+### Two-process pipeline
+
+```cpp
+auto [read_fd, write_fd] = subprocess::pipe().or_throw();  // returns std::tuple<int,int>
+
+subprocess::PopenConfig cat_cfg, grep_cfg;
+cat_cfg.stdout = subprocess::Redirection::FileDescriptor(write_fd);
+grep_cfg.stdin  = subprocess::Redirection::FileDescriptor(read_fd);
+grep_cfg.stdout = subprocess::Redirection::Pipe();
+
+auto cat  = subprocess::Popen::create({"cat", "data.txt"}, cat_cfg).or_throw();
+auto grep = subprocess::Popen::create({"grep", "sp"},      grep_cfg).or_throw();
+
+// Close the parent's copies of the pipe ends
+::close(read_fd);
+::close(write_fd);
+
+cat.wait().or_throw();
+grep.wait().or_throw();
+
+std::string out = grep.std_out->slurp();
+```
+
+### Check exit status
+
+```cpp
+auto p = subprocess::Popen::create({"/bin/sh", "-c", "exit 42"}, {}).or_throw();
+auto status = p.wait().or_throw();
+
+if (status.is_a<subprocess::ExitStatus::Exited>()) {
+    int code = status.get<subprocess::ExitStatus::Exited>().code;  // 42
+}
+if (status.is_a<subprocess::ExitStatus::Signaled>()) {
+    int sig = status.get<subprocess::ExitStatus::Signaled>().signal;
+}
+```
+
+## API reference
+
+### `Popen`
+
+| Method | Description |
+|---|---|
+| `Popen::create(argv, config)` | Spawn a child process; returns `Result<Popen>` |
+| `wait()` | Block until the process exits; returns `Result<ExitStatus>` |
+| `poll()` | Non-blocking check; returns `std::optional<ExitStatus>` |
+| `wait_timeout(ms)` | Block up to `ms` milliseconds; returns `Result<optional<ExitStatus>>` |
+| `exit_status()` | Return cached exit status without a syscall |
+| `pid()` | Return the child PID if still running |
+| `std_in`, `std_out`, `std_err` | `std::optional<boost::fdostream/fdistream>` pipe streams |
+
+### `PopenConfig`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `stdin` | `Redirection` | `None` | Child's standard input |
+| `stdout` | `Redirection` | `None` | Child's standard output |
+| `stderr` | `Redirection` | `None` | Child's standard error |
+| `detached` | `bool` | `false` | Don't reap child on `Popen` destruction |
+| `executable` | `optional<string>` | `nullopt` | Override `argv[0]` as the executed binary |
+| `env` | `optional<vector<EnvVar>>` | `nullopt` | Full environment (`nullopt` = inherit) |
+| `cwd` | `optional<string>` | `nullopt` | Working directory (`nullopt` = inherit) |
+| `setuid` | `optional<uid_t>` | `nullopt` | Drop to this UID before exec |
+| `setgid` | `optional<gid_t>` | `nullopt` | Drop to this GID before exec |
+| `setpgid` | `bool` | `false` | Call `setpgid(0,0)` before exec |
+
+### `Redirection`
+
+| Factory | Description |
+|---|---|
+| `Redirection::None()` | Inherit from parent (default) |
+| `Redirection::Pipe()` | Create a pipe; parent end available as `std_in/out/err` |
+| `Redirection::Merge()` | Merge with the other output stream (`2>&1`) |
+| `Redirection::FileDescriptor(fd)` | Use an existing file descriptor |
+| `Redirection::Read(path)` | Open a file for reading and pass it as stdin |
+| `Redirection::Write(path)` | Open a file for writing (truncate) |
+| `Redirection::Append(path)` | Open a file for writing (append) |
+
+### `Result<T>`
+
+| Method | Description |
+|---|---|
+| `ok()` | Returns `true` if holding a value |
+| `take_value()` | Move the success value out |
+| `take_error()` | Move the `PopenError` out |
+| `or_throw()` | Return value or throw `SubprocessException` |
+
+### `Exec` builder *(in progress)*
+
+`Exec::cmd("program").arg("--flag").cwd("/tmp").stdout(Redirection::Pipe())`
+
+| Method | Description |
+|---|---|
+| `Exec::cmd(command)` | Construct an `Exec` for `command` |
+| `arg(s)` / `add_args(v)` | Append argument(s) |
+| `env(k, v)` / `env_extend(v)` / `env_clear()` / `env_remove(k)` | Manage environment |
+| `cwd(path)` | Set working directory |
+| `stdin/stdout/stderr(r)` | Configure I/O redirection |
+| `detached()` | Mark the process as detached |
+
+`Exec::popen()`, `join()`, `capture()`, `stream_stdout()`, `stream_stdin()`, and
+`Exec::shell()` are currently being implemented (see `tickets/`).
+
+## Project status
+
+The core `Popen` API is complete and tested. The `Exec` builder and `Pipeline`
+type are under active development. See the `tickets/` directory for the full
+backlog.
