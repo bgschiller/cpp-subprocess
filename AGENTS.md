@@ -43,7 +43,7 @@ Key headers and their roles:
 | `Redirection.hpp`         | Enum for stdin/stdout/stderr routing               |
 | `ExitStatus.hpp`          | Discriminated union: `Exited`, `Signaled`, `Other` |
 | `CaptureData.hpp`         | Return type for captured stdout/stderr             |
-| `Communicator.hpp`        | Skeleton for `Popen::communicate()` (incomplete)   |
+| `Communicator.hpp`        | Placeholder (communicate logic lives in `Popen.cpp`) |
 | `PrepExec.hpp`            | POSIX exec helpers                                 |
 
 ---
@@ -95,8 +95,9 @@ Test sources live in `test/src/`:
 | `type_name_test.cpp`         | `type_name<T>()` utility tests                       |
 
 All new behaviour **must** have a corresponding test. Tests use **Catch2**
-(`TEST_CASE` / `SECTION` / `REQUIRE`). Do not add a `using namespace` declaration
-at file scope — qualify types explicitly (e.g., `subprocess::Exec`,
+(`TEST_CASE` / `SECTION` / `REQUIRE`). Do not use GoogleTest — this project
+uses Catch2 exclusively. Do not add a `using namespace` declaration at file
+scope — qualify types explicitly (e.g., `subprocess::Exec`,
 `subprocess::Popen`).
 
 ---
