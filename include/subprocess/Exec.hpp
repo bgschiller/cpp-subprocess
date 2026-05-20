@@ -71,17 +71,23 @@ namespace subprocess {
     static Exec shell(std::string cmdstr);
 
     /// Appends `arg` to argument list.
-    Exec& arg(std::string arg);
+    Exec& arg(std::string arg) &;
+    /// @overload
+    Exec&& arg(std::string arg) &&;
 
     /// Extends the argument list with `args`.
-    Exec& add_args(std::vector<std::string> args);
+    Exec& add_args(std::vector<std::string> args) &;
+    /// @overload
+    Exec&& add_args(std::vector<std::string> args) &&;
 
     /// Specifies that the process is initially detached.
     ///
     /// A detached process means that we will not wait for the
     /// process to finish when the object that owns it goes out of
     /// scope.
-    Exec& detached();
+    Exec& detached() &;
+    /// @overload
+    Exec&& detached() &&;
 
    private:
     void ensure_env();
@@ -91,7 +97,9 @@ namespace subprocess {
     ///
     /// When this is invoked, the subprocess will not inherit the
     /// environment of this process.
-    Exec& env_clear();
+    Exec& env_clear() &;
+    /// @overload
+    Exec&& env_clear() &&;
 
     /// Sets an environment variable in the child process.
     ///
@@ -101,7 +109,9 @@ namespace subprocess {
     /// Other environment variables are by default inherited from
     /// the current process.  If this is undesirable, call
     /// `env_clear` first.
-    Exec& env(const std::string& key, const std::string& value);
+    Exec& env(const std::string& key, const std::string& value) &;
+    /// @overload
+    Exec&& env(const std::string& key, const std::string& value) &&;
 
     /// Sets multiple environment variables in the child process.
     ///
@@ -112,19 +122,25 @@ namespace subprocess {
     /// Other environment variables are by default inherited from
     /// the current process.  If this is undesirable, call
     /// `env_clear` first.
-    Exec& env_extend(const std::vector<EnvVar>& env);
+    Exec& env_extend(const std::vector<EnvVar>& env) &;
+    /// @overload
+    Exec&& env_extend(const std::vector<EnvVar>& env) &&;
 
     /// Removes an environment variable from the child process.
     ///
     /// This only has effect if the environment is inherited from
     /// the current process (i.e., `env_clear` has not been called).
-    Exec& env_remove(const std::string& key);
+    Exec& env_remove(const std::string& key) &;
+    /// @overload
+    Exec&& env_remove(const std::string& key) &&;
 
     /// Specifies the current working directory of the child process.
     ///
     /// If unspecified, the current working directory is inherited
     /// from the parent.
-    Exec& cwd(const std::filesystem::path& dir);
+    Exec& cwd(const std::filesystem::path& dir) &;
+    /// @overload
+    Exec&& cwd(const std::filesystem::path& dir) &&;
 
     /// Specifies how to set up the standard input of the child process.
     ///
@@ -139,10 +155,18 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stdin(Redirection capture);
-    Exec& stdin(const std::vector<uint8_t>& data);
-    Exec& stdin(const std::string& data);
-    Exec& stdin(NullFile);
+    Exec& stdin(Redirection capture) &;
+    /// @overload
+    Exec&& stdin(Redirection capture) &&;
+    Exec& stdin(const std::vector<uint8_t>& data) &;
+    /// @overload
+    Exec&& stdin(const std::vector<uint8_t>& data) &&;
+    Exec& stdin(const std::string& data) &;
+    /// @overload
+    Exec&& stdin(const std::string& data) &&;
+    Exec& stdin(NullFile) &;
+    /// @overload
+    Exec&& stdin(NullFile) &&;
 
     /// Specifies how to set up the standard output of the child process.
     ///
@@ -154,8 +178,12 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stdout(Redirection capture);
-    Exec& stdout(NullFile);
+    Exec& stdout(Redirection capture) &;
+    /// @overload
+    Exec&& stdout(Redirection capture) &&;
+    Exec& stdout(NullFile) &;
+    /// @overload
+    Exec&& stdout(NullFile) &&;
 
     /// Specifies how to set up the standard error of the child process.
     ///
@@ -167,8 +195,12 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stderr(Redirection capture);
-    Exec& stderr(NullFile);
+    Exec& stderr(Redirection capture) &;
+    /// @overload
+    Exec&& stderr(Redirection capture) &&;
+    Exec& stderr(NullFile) &;
+    /// @overload
+    Exec&& stderr(NullFile) &&;
 
     /// Launch the configured process and return a `Popen` handle.
     ///
