@@ -283,7 +283,13 @@ Result<const std::nullopt_t> Popen::waitpid(bool block) {
         return PopenError{PopenError::IoError, std::string("waitpid: ") + strerror(errno)};
       }
       if (pid == r.pid) {
-        this->child_state = ChildState::Finished{ExitStatus::Exited{status}};
+        if (WIFEXITED(status)) {
+          this->child_state = ChildState::Finished{ExitStatus::Exited{WEXITSTATUS(status)}};
+        } else if (WIFSIGNALED(status)) {
+          this->child_state = ChildState::Finished{ExitStatus::Signaled{WTERMSIG(status)}};
+        } else {
+          this->child_state = ChildState::Finished{ExitStatus::Other{status}};
+        }
       }
       return std::nullopt;
     },

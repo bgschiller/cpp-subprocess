@@ -1,6 +1,7 @@
 #include <catch2/catch.hpp>
 #include <fcntl.h>
 #include <optional>
+#include <signal.h>
 #include <string>
 #include <unistd.h>
 
@@ -106,5 +107,36 @@ TEST_CASE("echo time") {
     REQUIRE(gExit.success());
     REQUIRE(cExit.success());
     REQUIRE(grep.std_out->slurp() == "brussels sprouts\nspinach\n");
+  }
+}
+
+TEST_CASE("exit status decoding") {
+  SECTION("exit code 0 is success") {
+    auto p = Popen::create({"true"}, PopenConfig{}).or_throw();
+    auto exit = p.wait().or_throw();
+    REQUIRE(exit.success());
+    REQUIRE(exit.is_a<ExitStatus::Exited>());
+    REQUIRE(exit.get<ExitStatus::Exited>().code == 0);
+  }
+
+  SECTION("non-zero exit code is decoded correctly") {
+    // Without the fix, exit(42) produces raw status 10752 (42<<8)
+    // and would be stored as Exited{10752} rather than Exited{42}.
+    auto p = Popen::create({"/bin/sh", "-c", "exit 42"}, PopenConfig{}).or_throw();
+    auto exit = p.wait().or_throw();
+    REQUIRE_FALSE(exit.success());
+    REQUIRE(exit.is_a<ExitStatus::Exited>());
+    REQUIRE(exit.get<ExitStatus::Exited>().code == 42);
+  }
+
+  SECTION("signal termination is decoded correctly") {
+    auto p = Popen::create({"sleep", "60"}, PopenConfig{}).or_throw();
+    auto maybe_pid = p.pid();
+    REQUIRE(maybe_pid.has_value());
+    ::kill(*maybe_pid, SIGKILL);
+    auto exit = p.wait().or_throw();
+    REQUIRE_FALSE(exit.success());
+    REQUIRE(exit.is_a<ExitStatus::Signaled>());
+    REQUIRE(exit.get<ExitStatus::Signaled>().signal == SIGKILL);
   }
 }

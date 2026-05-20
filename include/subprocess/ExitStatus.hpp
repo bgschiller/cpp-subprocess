@@ -55,6 +55,15 @@ namespace subprocess {
     ExitStatus(Args&&... args)
     : _state{std::forward<Args>(args)...}
     { }
+
+    template <typename T>
+    bool is_a() const {
+      return std::holds_alternative<T>(_state);
+    }
+    template <typename T>
+    T get() const {
+      return std::get<T>(_state);
+    }
     ExitStatus(const ExitStatus& other);
     ExitStatus(ExitStatus&& other);
 
