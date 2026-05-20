@@ -178,6 +178,21 @@ namespace subprocess {
     return std::move(*proc.std_out);
   }
 
+  Result<CaptureData> Exec::capture() {
+    if (config.stdout.is_a<Redirection::None>()) {
+      config.stdout = Redirection::Pipe();
+    }
+    if (config.stderr.is_a<Redirection::None>()) {
+      config.stderr = Redirection::Pipe();
+    }
+
+    auto p = popen();
+    if (!p.ok()) return p.take_error();
+    auto proc = p.take_value();
+
+    return proc.communicate_bytes(std::move(stdin_data));
+  }
+
   Result<boost::fdostream> Exec::stream_stdin() {
     if (config.stdin.is_a<Redirection::None>()) {
       config.stdin = Redirection::Pipe();

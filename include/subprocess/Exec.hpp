@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "CaptureData.hpp"
 #include "Popen.hpp"
 #include "PopenConfig.hpp"
 #include "Redirection.hpp"
@@ -227,6 +228,22 @@ namespace subprocess {
     /// @returns `Result<boost::fdostream>` — a writable stream connected to the
     ///          child's stdin, or a `PopenError` on failure.
     Result<boost::fdostream> stream_stdin();
+
+    /// Launch the process, write any buffered stdin data, collect all stdout
+    /// and stderr, wait for exit, and return the result.
+    ///
+    /// Before spawning, `stdout` and `stderr` redirections are automatically
+    /// set to `Redirection::Pipe()` if they are still `Redirection::None`, so
+    /// the child's output is always captured.
+    ///
+    /// If stdin data was supplied via `Exec::stdin(const std::string&)` or
+    /// `Exec::stdin(const std::vector<uint8_t>&)`, it is written to the child
+    /// concurrently with draining stdout and stderr, avoiding deadlocks.
+    ///
+    /// @returns `Result<CaptureData>` — on success, the captured stdout,
+    ///          stderr, and exit status; on failure, a `PopenError` describing
+    ///          what went wrong.
+    Result<CaptureData> capture();
   };
 }  // namespace subprocess
 

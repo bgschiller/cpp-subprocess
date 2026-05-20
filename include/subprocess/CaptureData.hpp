@@ -20,6 +20,12 @@ namespace subprocess {
     /// Exit status of the child process after `communicate()` completes.
     ExitStatus exit_status;
 
+    /// Constructs a `CaptureData` with the given stdout, stderr, and exit status.
+    CaptureData(std::string out, std::string err, ExitStatus status)
+        : stdout{ std::move(out) }
+        , stderr{ std::move(err) }
+        , exit_status{ std::move(status) } { }
+
     /// Returns `true` if the child exited with status 0.
     bool success() const { return exit_status.success(); }
   };

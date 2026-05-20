@@ -4,6 +4,7 @@
 #include <string>
 #include <unistd.h>
 
+#include "subprocess/CaptureData.hpp"
 #include "subprocess/Exec.hpp"
 #include "subprocess/ExitStatus.hpp"
 #include "subprocess/Popen.hpp"
@@ -198,5 +199,70 @@ TEST_CASE("Exec::stream_stdin") {
     subprocess::Result<boost::fdostream> result =
         subprocess::Exec::cmd("/definitely/does/not/exist/cmd").stream_stdin();
     REQUIRE_FALSE(result.ok());
+  }
+}
+
+TEST_CASE("Exec::capture") {
+  SECTION("captures stdout of a simple command") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::cmd("echo").arg("hello").capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->success());
+    REQUIRE(result->stdout == "hello\n");
+    REQUIRE(result->stderr.empty());
+  }
+
+  SECTION("captures stderr separately from stdout") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::cmd("sh")
+            .arg("-c")
+            .arg("echo out; echo err >&2")
+            .capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->success());
+    REQUIRE(result->stdout == "out\n");
+    REQUIRE(result->stderr == "err\n");
+  }
+
+  SECTION("feeds stdin data and captures stdout") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::cmd("cat").stdin(std::string("hello subprocess\n")).capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->success());
+    REQUIRE(result->stdout == "hello subprocess\n");
+  }
+
+  SECTION("exit status reflects command exit code") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::cmd("sh").arg("-c").arg("exit 7").capture();
+    REQUIRE(result.ok());
+    REQUIRE_FALSE(result->success());
+    REQUIRE(result->exit_status.is_a<subprocess::ExitStatus::Exited>());
+    REQUIRE(result->exit_status.get<subprocess::ExitStatus::Exited>().code == 7);
+  }
+
+  SECTION("already-piped stdout and stderr are not overridden") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::cmd("echo")
+            .arg("piped")
+            .stdout(subprocess::Redirection::Pipe())
+            .stderr(subprocess::Redirection::Pipe())
+            .capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->stdout == "piped\n");
+  }
+
+  SECTION("nonexistent command propagates launch error") {
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::cmd("/definitely/does/not/exist/cmd").capture();
+    REQUIRE_FALSE(result.ok());
+  }
+
+  SECTION("capture with binary stdin data") {
+    std::vector<uint8_t> data{ 'a', 'b', 'c', '\n' };
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::cmd("cat").stdin(data).capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->stdout == "abc\n");
   }
 }
