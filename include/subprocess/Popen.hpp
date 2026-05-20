@@ -180,7 +180,7 @@ namespace subprocess {
     // to the appropriate self.std* field, and returns the child end
     // of the pipe.
     Result<std::tuple<int, int, int>> setup_streams(
-        const Redirection&& stin, const Redirection&& stout, const Redirection&& sterr);
+        const Redirection& stin, const Redirection& stout, const Redirection& sterr);
 
     Result<const std::nullopt_t> waitpid(bool block);
 

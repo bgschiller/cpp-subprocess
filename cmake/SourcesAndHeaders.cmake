@@ -17,7 +17,6 @@ set(exe_sources
 set(headers
     include/subprocess/CaptureData.hpp
     include/subprocess/ChildState.hpp
-    include/subprocess/Communicator.hpp
     include/subprocess/Exec.hpp
     include/subprocess/ExitStatus.hpp
     include/subprocess/Popen.hpp

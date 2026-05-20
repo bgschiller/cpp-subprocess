@@ -50,7 +50,7 @@ namespace subprocess {
 
   void Exec::ensure_env() {
     if (!config.env) {
-      config.env = PopenConfig::currentEnv();
+      config.env = PopenConfig::current_env();
     }
   }
 

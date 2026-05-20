@@ -103,7 +103,7 @@ enum class MergeKind {
 };
 
 Result<std::tuple<int, int, int>> Popen::setup_streams(
-    const Redirection&& stin, const Redirection&& stout, const Redirection&& sterr) {
+    const Redirection& stin, const Redirection& stout, const Redirection& sterr) {
   int child_stdin = 0, child_stdout = 1, child_stderr = 2;
   MergeKind merge = MergeKind::None;
 
@@ -186,7 +186,7 @@ std::optional<PopenError> Popen::os_start(
   set_inheritable(std::get<1>(exec_fail_pipe), false);
   {
     auto child_endsR =
-        setup_streams(std::move(config.stdin), std::move(config.stdout), std::move(config.stderr));
+        setup_streams(config.stdin, config.stdout, config.stderr);
     if (!child_endsR.ok()) return child_endsR.take_error();
     auto child_ends = child_endsR.take_value();
     std::optional<std::vector<std::string>> childEnv;
@@ -352,13 +352,7 @@ Result<const std::nullopt_t> Popen::waitpid(bool block) {
           return PopenError{ PopenError::IoError, std::string("waitpid: ") + strerror(errno) };
         }
         if (pid == r.pid) {
-          if (WIFEXITED(status)) {
-            this->child_state = ChildState::Finished{ ExitStatus::Exited{ WEXITSTATUS(status) } };
-          } else if (WIFSIGNALED(status)) {
-            this->child_state = ChildState::Finished{ ExitStatus::Signaled{ WTERMSIG(status) } };
-          } else {
-            this->child_state = ChildState::Finished{ ExitStatus::Other{ status } };
-          }
+          this->child_state = ChildState::Finished{ decode_exit_status(status) };
         }
         return std::nullopt;
       },

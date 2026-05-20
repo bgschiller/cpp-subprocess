@@ -69,7 +69,7 @@ namespace subprocess {
     ///
     /// The returned value is in the format accepted by the `env`
     /// member of `PopenConfig`.
-    static std::vector<EnvVar> currentEnv();
+    static std::vector<EnvVar> current_env();
   };
 
 }  // namespace subprocess

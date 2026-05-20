@@ -4,7 +4,7 @@ extern char** environ;
 
 using namespace subprocess;
 
-std::vector<EnvVar> PopenConfig::currentEnv() {
+std::vector<EnvVar> PopenConfig::current_env() {
   char** envPtr = environ;
   std::vector<EnvVar> envs;
   while (envPtr != nullptr && *envPtr != nullptr) {
