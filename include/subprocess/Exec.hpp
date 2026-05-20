@@ -24,7 +24,6 @@ namespace subprocess {
 
   class Exec {
   private:
-    Exec() = delete;
     Exec(
       std::string command,
       std::vector<std::string> args,
@@ -36,6 +35,7 @@ namespace subprocess {
     PopenConfig config;
     std::optional<std::vector<uint8_t>> stdin_data;
   public:
+    Exec() = delete;
     /// Constructs a new `Exec`, configured to run `command`.
     ///
     /// The command will be run directly in the OS, without an
@@ -74,7 +74,7 @@ namespace subprocess {
     Exec& arg(std::string arg);
 
     /// Extends the argument list with `args`.
-    Exec& args(std::vector<std::string> args);
+    Exec& add_args(std::vector<std::string> args);
 
     /// Specifies that the process is initially detached.
     ///
@@ -114,6 +114,12 @@ public:
     /// the current process.  If this is undesirable, call
     /// `env_clear` first.
     Exec& env_extend(const std::vector<EnvVar>& env);
+
+    /// Removes an environment variable from the child process.
+    ///
+    /// This only has effect if the environment is inherited from
+    /// the current process (i.e., `env_clear` has not been called).
+    Exec& env_remove(const std::string& key);
 
     /// Specifies the current working directory of the child process.
     ///
