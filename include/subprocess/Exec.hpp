@@ -8,6 +8,7 @@
 #include "PopenConfig.hpp"
 #include "Redirection.hpp"
 #include "Result.hpp"
+#include "vendor/fdstream.hpp"
 
 namespace subprocess {
 
@@ -182,6 +183,50 @@ namespace subprocess {
     /// @returns `Result<Popen>` — on success, a handle to the running child
     ///          process; on failure, a `PopenError` describing what went wrong.
     Result<Popen> popen();
+
+    /// Launch the process, wait for it to exit, and return its exit status.
+    ///
+    /// This is a convenience wrapper around `popen()` + `Popen::wait()`.  It is
+    /// equivalent to:
+    /// ```cpp
+    /// auto p = exec.popen();
+    /// if (!p.ok()) return p.take_error();
+    /// return p.take_value().wait();
+    /// ```
+    ///
+    /// @returns `Result<ExitStatus>` — the exit status on success, or a
+    ///          `PopenError` if the process could not be launched.
+    Result<ExitStatus> join();
+
+    /// Launch the process and return its stdout as a readable stream.
+    ///
+    /// If stdout has not been configured (i.e. it is still `Redirection::None`),
+    /// it is automatically set to `Redirection::Pipe()` before spawning.  If
+    /// stdout was already configured to a non-pipe redirection, a
+    /// `PopenError::LogicError` is returned.
+    ///
+    /// The `Popen` handle is detached after the stream is extracted, so the
+    /// caller owns the interaction purely through the returned stream.  The
+    /// child process runs concurrently; it is reaped by the OS when it exits.
+    ///
+    /// @returns `Result<boost::fdistream>` — a readable stream connected to the
+    ///          child's stdout, or a `PopenError` on failure.
+    Result<boost::fdistream> stream_stdout();
+
+    /// Launch the process and return its stdin as a writable stream.
+    ///
+    /// If stdin has not been configured (i.e. it is still `Redirection::None`),
+    /// it is automatically set to `Redirection::Pipe()` before spawning.  If
+    /// stdin was already configured to a non-pipe redirection, a
+    /// `PopenError::LogicError` is returned.
+    ///
+    /// The `Popen` handle is detached after the stream is extracted, so the
+    /// caller owns the interaction purely through the returned stream.  The
+    /// child process runs concurrently; it is reaped by the OS when it exits.
+    ///
+    /// @returns `Result<boost::fdostream>` — a writable stream connected to the
+    ///          child's stdin, or a `PopenError` on failure.
+    Result<boost::fdostream> stream_stdin();
   };
 }  // namespace subprocess
 

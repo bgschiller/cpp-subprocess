@@ -154,4 +154,44 @@ namespace subprocess {
 
     return Popen::create(argv, config);
   }
+
+  Result<ExitStatus> Exec::join() {
+    auto p = popen();
+    if (!p.ok()) return p.take_error();
+    return p.take_value().wait();
+  }
+
+  Result<boost::fdistream> Exec::stream_stdout() {
+    if (config.stdout.is_a<Redirection::None>()) {
+      config.stdout = Redirection::Pipe();
+    }
+    auto p = popen();
+    if (!p.ok()) return p.take_error();
+    auto proc = p.take_value();
+    if (!proc.std_out.has_value()) {
+      return PopenError{ PopenError::LogicError,
+                         "stream_stdout: stdout must be configured as Redirection::Pipe" };
+    }
+    // Detach so the destructor does not block in wait() while the caller
+    // has not yet started reading from the stream.
+    proc.detached = true;
+    return std::move(*proc.std_out);
+  }
+
+  Result<boost::fdostream> Exec::stream_stdin() {
+    if (config.stdin.is_a<Redirection::None>()) {
+      config.stdin = Redirection::Pipe();
+    }
+    auto p = popen();
+    if (!p.ok()) return p.take_error();
+    auto proc = p.take_value();
+    if (!proc.std_in.has_value()) {
+      return PopenError{ PopenError::LogicError,
+                         "stream_stdin: stdin must be configured as Redirection::Pipe" };
+    }
+    // Detach so the destructor does not block in wait() while the caller
+    // has not yet finished writing to the stream.
+    proc.detached = true;
+    return std::move(*proc.std_in);
+  }
 }  // namespace subprocess

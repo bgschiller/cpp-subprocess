@@ -9,6 +9,7 @@
 #include "subprocess/Popen.hpp"
 #include "subprocess/Redirection.hpp"
 #include "subprocess/posix.hpp"
+#include "vendor/fdstream.hpp"
 
 TEST_CASE("Exec::popen") {
   SECTION("simple command succeeds") {
@@ -83,5 +84,119 @@ TEST_CASE("Exec::popen") {
     subprocess::Popen proc = result.take_value();
     subprocess::ExitStatus status = proc.wait().take_value();
     REQUIRE_FALSE(status.success());
+  }
+}
+
+TEST_CASE("Exec::join") {
+  SECTION("successful command returns success exit status") {
+    subprocess::Result<subprocess::ExitStatus> result =
+        subprocess::Exec::cmd("true").join();
+    REQUIRE(result.ok());
+    REQUIRE(result->success());
+  }
+
+  SECTION("failing command returns non-success exit status") {
+    subprocess::Result<subprocess::ExitStatus> result =
+        subprocess::Exec::cmd("false").join();
+    REQUIRE(result.ok());
+    REQUIRE_FALSE(result->success());
+  }
+
+  SECTION("absolute path to nonexistent command propagates launch error") {
+    subprocess::Result<subprocess::ExitStatus> result =
+        subprocess::Exec::cmd("/definitely/does/not/exist/cmd").join();
+    REQUIRE_FALSE(result.ok());
+  }
+
+  SECTION("args are forwarded correctly") {
+    // 'test' exits 0 when the string is non-empty
+    subprocess::Result<subprocess::ExitStatus> result =
+        subprocess::Exec::cmd("sh").arg("-c").arg("exit 42").join();
+    REQUIRE(result.ok());
+    REQUIRE(result->is_a<subprocess::ExitStatus::Exited>());
+    REQUIRE(result->get<subprocess::ExitStatus::Exited>().code == 42);
+  }
+}
+
+TEST_CASE("Exec::stream_stdout") {
+  SECTION("automatically sets stdout to pipe when not configured") {
+    subprocess::Result<boost::fdistream> result =
+        subprocess::Exec::cmd("echo").arg("hello").stream_stdout();
+    REQUIRE(result.ok());
+    std::string line;
+    std::getline(*result, line);
+    REQUIRE(line == "hello");
+  }
+
+  SECTION("works when stdout already explicitly set to Pipe") {
+    subprocess::Result<boost::fdistream> result =
+        subprocess::Exec::cmd("echo")
+            .arg("world")
+            .stdout(subprocess::Redirection::Pipe())
+            .stream_stdout();
+    REQUIRE(result.ok());
+    std::string line;
+    std::getline(*result, line);
+    REQUIRE(line == "world");
+  }
+
+  SECTION("multiline output can be read line by line") {
+    subprocess::Result<boost::fdistream> result =
+        subprocess::Exec::cmd("printf").arg("a\nb\nc\n").stream_stdout();
+    REQUIRE(result.ok());
+    std::string line;
+    std::getline(*result, line);
+    REQUIRE(line == "a");
+    std::getline(*result, line);
+    REQUIRE(line == "b");
+    std::getline(*result, line);
+    REQUIRE(line == "c");
+  }
+
+  SECTION("nonexistent command propagates launch error") {
+    subprocess::Result<boost::fdistream> result =
+        subprocess::Exec::cmd("/definitely/does/not/exist/cmd").stream_stdout();
+    REQUIRE_FALSE(result.ok());
+  }
+}
+
+TEST_CASE("Exec::stream_stdin") {
+  SECTION("automatically sets stdin to pipe when not configured") {
+    // cat with stdout discarded; writing to the returned stream must not fail.
+    subprocess::Result<boost::fdostream> result =
+        subprocess::Exec::cmd("cat").stdout(subprocess::NullFile{}).stream_stdin();
+    REQUIRE(result.ok());
+    *result << "hello subprocess\n";
+    result->close();
+  }
+
+  SECTION("works when stdin already explicitly set to Pipe") {
+    subprocess::Result<boost::fdostream> result =
+        subprocess::Exec::cmd("cat")
+            .stdin(subprocess::Redirection::Pipe())
+            .stdout(subprocess::NullFile{})
+            .stream_stdin();
+    REQUIRE(result.ok());
+    *result << "data\n";
+    result->close();
+  }
+
+  SECTION("data written to stream is received by the subprocess") {
+    // Use a shell one-liner: read a line from stdin and exit with
+    // code 0 only if it equals the expected string.
+    subprocess::Result<boost::fdostream> result =
+        subprocess::Exec::cmd("sh")
+            .arg("-c")
+            .arg("read line; [ \"$line\" = \"hello\" ]")
+            .stream_stdin();
+    REQUIRE(result.ok());
+    *result << "hello\n";
+    result->close();
+  }
+
+  SECTION("nonexistent command propagates launch error") {
+    subprocess::Result<boost::fdostream> result =
+        subprocess::Exec::cmd("/definitely/does/not/exist/cmd").stream_stdin();
+    REQUIRE_FALSE(result.ok());
   }
 }
