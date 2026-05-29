@@ -3,6 +3,7 @@
 #  include <fcntl.h>
 #  include <unistd.h>
 #endif
+#include <algorithm>
 #include <optional>
 #include <string>
 
@@ -210,9 +211,15 @@ TEST_CASE("Exec::shell") {
         subprocess::Exec::shell("echo hello world").capture();
     REQUIRE(result.ok());
     REQUIRE(result->success());
-    REQUIRE(result->out == "hello world\n");
+    // Normalize CRLF: cmd.exe on Windows produces \r\n line endings.
+    std::string out = result->out;
+    out.erase(std::remove(out.begin(), out.end(), '\r'), out.end());
+    REQUIRE(out == "hello world\n");
   }
 
+#ifndef _WIN32
+  // Command substitution and pipeline-in-string are POSIX sh features;
+  // cmd.exe does not support them.
   SECTION("shell features: command substitution") {
     subprocess::Result<subprocess::CaptureData> result =
         subprocess::Exec::shell("echo $(echo nested)").capture();
@@ -228,6 +235,7 @@ TEST_CASE("Exec::shell") {
     REQUIRE(result->success());
     REQUIRE(result->out == "FOO\n");
   }
+#endif
 
   SECTION("non-zero exit status is reflected") {
     subprocess::Result<subprocess::CaptureData> result =
