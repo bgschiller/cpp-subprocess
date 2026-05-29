@@ -185,8 +185,7 @@ std::optional<PopenError> Popen::os_start(
   set_inheritable(std::get<0>(exec_fail_pipe), false);
   set_inheritable(std::get<1>(exec_fail_pipe), false);
   {
-    auto child_endsR =
-        setup_streams(config.stdin, config.stdout, config.stderr);
+    auto child_endsR = setup_streams(config.stdin, config.stdout, config.stderr);
     if (!child_endsR.ok()) return child_endsR.take_error();
     auto child_ends = child_endsR.take_value();
     std::optional<std::vector<std::string>> childEnv;

@@ -22,6 +22,7 @@ set(test_sources
   src/simple_commands.cpp
   src/type_name_test.cpp
   src/main.cpp
+  src/pipeline_test.cpp
 )
 add_executable(${PROJECT_NAME} ${test_sources})
 

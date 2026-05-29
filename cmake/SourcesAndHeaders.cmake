@@ -8,6 +8,7 @@ set(sources
     src/posix.cpp
     src/PrepExec.cpp
     src/Redirection.cpp
+    src/Pipeline.cpp
 )
 
 set(exe_sources
@@ -29,4 +30,5 @@ set(headers
     include/subprocess/Result.hpp
     include/subprocess/type_name.hpp
     include/subprocess/variant_helpers.hpp
+    include/subprocess/Pipeline.hpp
 )
