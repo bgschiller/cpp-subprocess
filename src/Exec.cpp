@@ -30,14 +30,14 @@ namespace subprocess {
   }
   Exec&& Exec::arg(std::string arg) && { return std::move(this->arg(std::move(arg))); }
 
-  Exec& Exec::add_args(std::vector<std::string> args) & {
+  Exec& Exec::add_args(std::vector<std::string> new_args) & {
     this->args.insert(
-        this->args.end(), std::make_move_iterator(args.begin()),
-        std::make_move_iterator(args.end()));
+        this->args.end(), std::make_move_iterator(new_args.begin()),
+        std::make_move_iterator(new_args.end()));
     return *this;
   }
-  Exec&& Exec::add_args(std::vector<std::string> args) && {
-    return std::move(this->add_args(std::move(args)));
+  Exec&& Exec::add_args(std::vector<std::string> new_args) && {
+    return std::move(this->add_args(std::move(new_args)));
   }
 
   Exec& Exec::detached() & {

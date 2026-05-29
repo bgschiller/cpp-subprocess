@@ -69,8 +69,8 @@ namespace subprocess {
       if (!pipe_result.ok()) {
         // Close any already-created pipes before returning.
         for (auto& [r, w] : pipes) {
-          ::close(r);
-          ::close(w);
+          subprocess::close_fd(r);
+          subprocess::close_fd(w);
         }
         return pipe_result.take_error();
       }
@@ -117,11 +117,11 @@ namespace subprocess {
           // Duplicate the fd so each stage gets its own copy.
           if (stderr_override_->is_a<Redirection::FileDescriptor>()) {
             int orig_fd = stderr_override_->get<Redirection::FileDescriptor>().fd;
-            int dup_fd = ::dup(orig_fd);
-            if (dup_fd == -1) {
+            int dup_result = subprocess::dup_fd(orig_fd);
+            if (dup_result == -1) {
               return PopenError{ PopenError::IoError, "dup() failed for stderr redirection" };
             }
-            stage.stderr_(Redirection::FileDescriptor(dup_fd));
+            stage.stderr_(Redirection::FileDescriptor(dup_result));
           } else if (stderr_override_->is_a<Redirection::Pipe>()) {
             stage.stderr_(Redirection::Pipe{});
           } else if (stderr_override_->is_a<Redirection::Merge>()) {
@@ -135,8 +135,8 @@ namespace subprocess {
       if (!pop_result.ok()) {
         // Close remaining pipe fds before returning.
         for (std::size_t j = i; j < n - 1; ++j) {
-          ::close(pipes[j].first);
-          ::close(pipes[j].second);
+          subprocess::close_fd(pipes[j].first);
+          subprocess::close_fd(pipes[j].second);
         }
         return pop_result.take_error();
       }
@@ -146,8 +146,8 @@ namespace subprocess {
     // Close all intermediate pipe fds in the parent now that all children
     // have been spawned — the children hold the relevant ends open.
     for (auto& [r, w] : pipes) {
-      ::close(r);
-      ::close(w);
+      subprocess::close_fd(r);
+      subprocess::close_fd(w);
     }
 
     return children;

@@ -3,6 +3,12 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#include <signal.h>
+// MSVC's <signal.h> does not define SIGKILL. On Windows we map both SIGTERM
+// and SIGKILL onto TerminateProcess, so provide a distinct fallback value.
+#ifndef SIGKILL
+#define SIGKILL 9
+#endif
 #else
 #include <errno.h>
 #include <fcntl.h>

@@ -62,6 +62,34 @@ namespace subprocess {
 #endif
   }
 
+  int close_fd(int fd) {
+#ifdef _WIN32
+    return _close(fd);
+#else
+    return ::close(fd);
+#endif
+  }
+
+  int dup_fd(int fd) {
+#ifdef _WIN32
+    return _dup(fd);
+#else
+    return ::dup(fd);
+#endif
+  }
+
+  std::string error_string(int errnum) {
+#ifdef _WIN32
+    char buf[256] = { 0 };
+    if (strerror_s(buf, sizeof(buf), errnum) == 0) {
+      return std::string(buf);
+    }
+    return std::string("errno ") + std::to_string(errnum);
+#else
+    return std::string(strerror(errnum));
+#endif
+  }
+
   void panic(std::string msg) {
     std::cerr << msg << std::endl;
     std::exit(1);

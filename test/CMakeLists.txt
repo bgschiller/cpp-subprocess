@@ -31,7 +31,9 @@ add_executable(${PROJECT_NAME} ${test_sources})
 #
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
-target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -O0 -g)
+if (NOT MSVC)
+  target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -O0 -g)
+endif()
 
 #
 # Setup code coverage if enabled

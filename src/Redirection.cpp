@@ -10,6 +10,7 @@
 #include <unistd.h>
 #endif
 
+#include "subprocess/posix.hpp"
 #include "subprocess/variant_helpers.hpp"
 
 using namespace subprocess;
@@ -17,11 +18,7 @@ using namespace subprocess::internal;
 
 void Redirection::FileDescriptor::discard() {
   if (_owned) {
-#ifdef _WIN32
-    _close(fd);
-#else
-    ::close(fd);
-#endif
+    subprocess::close_fd(fd);
     _owned = false;
   }
 }
@@ -55,14 +52,15 @@ Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(FileDescript
 Result<Redirection> Redirection::Open(
     const std::filesystem::path& path, int flags, mode_type mode) {
 #ifdef _WIN32
-  int fd = _sopen(path.string().c_str(), flags | _O_BINARY, _SH_DENYNO, mode);
+  int fd = -1;
+  errno = _sopen_s(&fd, path.string().c_str(), flags | _O_BINARY, _SH_DENYNO, mode);
 #else
   int fd = ::open(path.c_str(), flags, mode);
 #endif
   if (fd < 0) {
-    return PopenError{ PopenError::ErrKind::IoError, std::string("open(): ") +
-                                                         std::to_string(errno) + std::string(" ") +
-                                                         strerror(errno) };
+    return PopenError{ PopenError::ErrKind::IoError,
+                       std::string("open(): ") + std::to_string(errno) + std::string(" ") +
+                           subprocess::error_string(errno) };
   }
   return Redirection{ Redirection::FileDescriptor(fd) };
 }
