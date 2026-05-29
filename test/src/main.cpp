@@ -7,9 +7,13 @@
 #include <cstdio>
 
 int main(int argc, char* argv[]) {
-  // Unbuffered stdout: every character is written immediately to the OS pipe
-  // that CTest reads, so output survives a hard crash.
+  // Unbuffered I/O: every character is written immediately so output survives
+  // a hard crash via __fastfail / STATUS_STACK_BUFFER_OVERRUN.
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   std::setvbuf(stderr, nullptr, _IONBF, 0);
+  // Also force std::cout / std::cerr to flush after every operation.
+  std::ios::sync_with_stdio(true);
+  std::cout << std::unitbuf;
+  std::cerr << std::unitbuf;
   return Catch::Session().run(argc, argv);
 }

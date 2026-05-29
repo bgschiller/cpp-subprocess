@@ -41,6 +41,25 @@ jobs:
       - name: build
         run: cmake --build build --config "$env:BUILD_TYPE" -j4
 
+      - name: run tests (direct exe, output to file)
+        run: |
+          cd build
+          # Run the test executable directly so Catch2 output is written to a
+          # file. File I/O is flushed per-write (unitbuf in main.cpp), so even
+          # a hard crash via __fastfail leaves behind useful output.
+          & test\Release\SubprocessTests.exe -o test_output.txt ; $true
+        continue-on-error: true
+
+      - name: show direct test output
+        if: always()
+        run: |
+          if (Test-Path build\test_output.txt) {
+            Write-Host "=== SubprocessTests.exe direct output ==="
+            Get-Content build\test_output.txt
+          } else {
+            Write-Host "(no test_output.txt found)"
+          }
+
       - name: run tests
         run: |
           cd build
