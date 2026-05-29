@@ -244,6 +244,8 @@ TEST_CASE("Exec::shell") {
     REQUIRE(result.ok());
     std::string line;
     std::getline(*result, line);
+    // cmd.exe on Windows appends \r before \n; strip it for cross-platform comparison.
+    if (!line.empty() && line.back() == '\r') line.pop_back();
     REQUIRE(line == "streamed");
   }
 }

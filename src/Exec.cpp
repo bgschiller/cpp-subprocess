@@ -132,7 +132,11 @@ namespace subprocess {
     if (!config.stdin_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdin is already set");
     }
+#ifdef _WIN32
+    config.stdin_ = Redirection::Read("NUL").or_throw();
+#else
     config.stdin_ = Redirection::Read("/dev/null").or_throw();
+#endif
     return *this;
   }
   Exec&& Exec::stdin_(NullFile nf) && { return std::move(this->stdin_(nf)); }
@@ -154,7 +158,11 @@ namespace subprocess {
     if (!config.stdout_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdout is already set");
     }
+#ifdef _WIN32
+    config.stdout_ = Redirection::Write("NUL").or_throw();
+#else
     config.stdout_ = Redirection::Write("/dev/null").or_throw();
+#endif
     return *this;
   }
   Exec&& Exec::stdout_(NullFile nf) && { return std::move(this->stdout_(nf)); }
@@ -176,7 +184,11 @@ namespace subprocess {
     if (!config.stderr_.is_a<Redirection::None>()) {
       throw std::runtime_error("stderr is already set");
     }
+#ifdef _WIN32
+    config.stderr_ = Redirection::Write("NUL").or_throw();
+#else
     config.stderr_ = Redirection::Write("/dev/null").or_throw();
+#endif
     return *this;
   }
   Exec&& Exec::stderr_(NullFile nf) && { return std::move(this->stderr_(nf)); }

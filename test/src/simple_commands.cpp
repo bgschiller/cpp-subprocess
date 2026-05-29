@@ -20,6 +20,13 @@
 
 using namespace subprocess;
 
+// On Windows, /bin/sh does not exist but Git for Windows ships sh.exe on PATH.
+#ifdef _WIN32
+static constexpr const char* kSh = "sh";
+#else
+static constexpr const char* kSh = "/bin/sh";
+#endif
+
 TEST_CASE("echo time") {
   SECTION("to stdout") {
     auto echoR = Popen::create({"echo", "yolo"}, PopenConfig{});
@@ -321,7 +328,7 @@ TEST_CASE("Popen::communicate") {
     cfg.stderr_ = subprocess::Redirection::Pipe();
     auto p =
         subprocess::Popen::create(
-            {"/bin/sh", "-c", "echo out; echo err >&2"}, cfg)
+            {kSh, "-c", "echo out; echo err >&2"}, cfg)
             .or_throw();
     auto result = p.communicate().or_throw();
     REQUIRE(result.out == "out\n");
@@ -380,7 +387,7 @@ TEST_CASE("Popen::communicate") {
     subprocess::PopenConfig cfg;
     cfg.stdout_ = subprocess::Redirection::Pipe();
     auto p =
-        subprocess::Popen::create({"/bin/sh", "-c", "exit 42"}, cfg).or_throw();
+        subprocess::Popen::create({kSh, "-c", "exit 42"}, cfg).or_throw();
     auto result = p.communicate().or_throw();
     REQUIRE_FALSE(result.success());
     REQUIRE(result.exit_status.is_a<subprocess::ExitStatus::Exited>());
@@ -400,7 +407,7 @@ TEST_CASE("exit status decoding") {
   SECTION("non-zero exit code is decoded correctly") {
     // Without the fix, exit(42) produces raw status 10752 (42<<8)
     // and would be stored as Exited{10752} rather than Exited{42}.
-    auto p = Popen::create({"/bin/sh", "-c", "exit 42"}, PopenConfig{}).or_throw();
+    auto p = Popen::create({kSh, "-c", "exit 42"}, PopenConfig{}).or_throw();
     auto exit = p.wait().or_throw();
     REQUIRE_FALSE(exit.success());
     REQUIRE(exit.is_a<ExitStatus::Exited>());
