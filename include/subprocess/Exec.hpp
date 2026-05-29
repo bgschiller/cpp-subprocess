@@ -155,18 +155,18 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stdin(Redirection capture) &;
+    Exec& stdin_(Redirection capture) &;
     /// @overload
-    Exec&& stdin(Redirection capture) &&;
-    Exec& stdin(const std::vector<uint8_t>& data) &;
+    Exec&& stdin_(Redirection capture) &&;
+    Exec& stdin_(const std::vector<uint8_t>& data) &;
     /// @overload
-    Exec&& stdin(const std::vector<uint8_t>& data) &&;
-    Exec& stdin(const std::string& data) &;
+    Exec&& stdin_(const std::vector<uint8_t>& data) &&;
+    Exec& stdin_(const std::string& data) &;
     /// @overload
-    Exec&& stdin(const std::string& data) &&;
-    Exec& stdin(NullFile) &;
+    Exec&& stdin_(const std::string& data) &&;
+    Exec& stdin_(NullFile) &;
     /// @overload
-    Exec&& stdin(NullFile) &&;
+    Exec&& stdin_(NullFile) &&;
 
     /// Specifies how to set up the standard output of the child process.
     ///
@@ -178,12 +178,12 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stdout(Redirection capture) &;
+    Exec& stdout_(Redirection capture) &;
     /// @overload
-    Exec&& stdout(Redirection capture) &&;
-    Exec& stdout(NullFile) &;
+    Exec&& stdout_(Redirection capture) &&;
+    Exec& stdout_(NullFile) &;
     /// @overload
-    Exec&& stdout(NullFile) &&;
+    Exec&& stdout_(NullFile) &&;
 
     /// Specifies how to set up the standard error of the child process.
     ///
@@ -195,12 +195,12 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stderr(Redirection capture) &;
+    Exec& stderr_(Redirection capture) &;
     /// @overload
-    Exec&& stderr(Redirection capture) &&;
-    Exec& stderr(NullFile) &;
+    Exec&& stderr_(Redirection capture) &&;
+    Exec& stderr_(NullFile) &;
     /// @overload
-    Exec&& stderr(NullFile) &&;
+    Exec&& stderr_(NullFile) &&;
 
     /// Launch the configured process and return a `Popen` handle.
     ///

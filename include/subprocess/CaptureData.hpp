@@ -14,16 +14,16 @@ namespace subprocess {
   /// redirected to a `Redirection::Pipe`.
   struct CaptureData {
     /// All bytes written by the child to stdout (empty if stdout was not piped).
-    std::string stdout;
+    std::string out;
     /// All bytes written by the child to stderr (empty if stderr was not piped).
-    std::string stderr;
+    std::string err;
     /// Exit status of the child process after `communicate()` completes.
     ExitStatus exit_status;
 
     /// Constructs a `CaptureData` with the given stdout, stderr, and exit status.
-    CaptureData(std::string out, std::string err, ExitStatus status)
-        : stdout{ std::move(out) }
-        , stderr{ std::move(err) }
+    CaptureData(std::string stdout_data, std::string stderr_data, ExitStatus status)
+        : out{ std::move(stdout_data) }
+        , err{ std::move(stderr_data) }
         , exit_status{ std::move(status) } { }
 
     /// Returns `true` if the child exited with status 0.

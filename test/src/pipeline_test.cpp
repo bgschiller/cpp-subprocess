@@ -55,7 +55,7 @@ TEST_CASE("Pipeline: capture stdout of last stage") {
       (subprocess::Exec::cmd("echo").arg("hello world") | subprocess::Exec::cmd("cat"))
           .capture()
           .or_throw();
-  REQUIRE(data.stdout == "hello world\n");
+  REQUIRE(data.out == "hello world\n");
   REQUIRE(data.success());
 }
 
@@ -71,7 +71,7 @@ TEST_CASE("Pipeline: capture replaces existing two-process test") {
           .capture()
           .or_throw();
 
-  REQUIRE(data.stdout == "brussels sprouts\nspinach\n");
+  REQUIRE(data.out == "brussels sprouts\nspinach\n");
   REQUIRE(data.success());
 }
 
@@ -82,7 +82,7 @@ TEST_CASE("Pipeline: capture stderr from a stage") {
       (subprocess::Exec::shell("echo err_msg >&2") | subprocess::Exec::cmd("cat"))
           .capture()
           .or_throw();
-  REQUIRE(data.stderr.find("err_msg") != std::string::npos);
+  REQUIRE(data.err.find("err_msg") != std::string::npos);
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ TEST_CASE("Pipeline: popen returns handles for all stages") {
 TEST_CASE("Pipeline: stdin(NullFile) makes first stage read from /dev/null") {
   // cat reads from /dev/null (empty input), so grep finds nothing → exit 1.
   auto status = (subprocess::Exec::cmd("cat") | subprocess::Exec::cmd("grep").arg("anything"))
-                    .stdin(subprocess::NullFile{})
+                    .stdin_(subprocess::NullFile{})
                     .join()
                     .or_throw();
   REQUIRE_FALSE(status.success());
@@ -116,7 +116,7 @@ TEST_CASE("Pipeline: stdin(NullFile) makes first stage read from /dev/null") {
 TEST_CASE("Pipeline: stdout(NullFile) discards last stage output") {
   auto status =
       (subprocess::Exec::cmd("echo").arg("hello") | subprocess::Exec::cmd("cat"))
-          .stdout(subprocess::NullFile{})
+          .stdout_(subprocess::NullFile{})
           .join()
           .or_throw();
   REQUIRE(status.success());

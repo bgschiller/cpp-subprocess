@@ -28,7 +28,7 @@ TEST_CASE("echo time") {
 
   SECTION("pipe output") {
     PopenConfig config;
-    config.stdout = Redirection::Pipe();
+    config.stdout_ = Redirection::Pipe();
     auto echoR = Popen::create({"echo", "yolo"}, config);
     REQUIRE(echoR.ok());
     auto echo = echoR.take_value();
@@ -44,8 +44,8 @@ TEST_CASE("echo time") {
 
   SECTION("pipe input and output") {
     PopenConfig config;
-    config.stdin = Redirection::Pipe();
-    config.stdout = Redirection::Pipe();
+    config.stdin_ = Redirection::Pipe();
+    config.stdout_ = Redirection::Pipe();
     auto grepR = Popen::create({"grep", "apple"}, config);
     REQUIRE(grepR.ok());
     auto grep = grepR.take_value();
@@ -77,12 +77,12 @@ TEST_CASE("echo time") {
     PopenConfig config;
     SECTION("file descriptor") {
       int fruitsFd = open("fruits.tmp", O_RDONLY);
-      config.stdin = std::move(Redirection::FileDescriptor(fruitsFd));
+      config.stdin_ = std::move(Redirection::FileDescriptor(fruitsFd));
     }
     SECTION("shorthand") {
-      config.stdin = Redirection::Read("fruits.tmp").or_throw();
+      config.stdin_ = Redirection::Read("fruits.tmp").or_throw();
     }
-    config.stdout = Redirection::Pipe();
+    config.stdout_ = Redirection::Pipe();
     auto grep = Popen::create({"grep", "apple"}, config).or_throw();
     auto exit = grep.wait().or_throw();
     REQUIRE(exit.success());
@@ -97,10 +97,10 @@ TEST_CASE("echo time") {
 
     auto catToGrep = subprocess::pipe().or_throw();
     PopenConfig catCfg;
-    catCfg.stdout = Redirection::FileDescriptor(std::get<1>(catToGrep));
+    catCfg.stdout_ = Redirection::FileDescriptor(std::get<1>(catToGrep));
     PopenConfig grepCfg;
-    grepCfg.stdin = Redirection::FileDescriptor(std::get<0>(catToGrep));
-    grepCfg.stdout = Redirection::Pipe();
+    grepCfg.stdin_ = Redirection::FileDescriptor(std::get<0>(catToGrep));
+    grepCfg.stdout_ = Redirection::Pipe();
 
     auto cat = Popen::create({"cat", "veggies.tmp"}, catCfg).or_throw();
     auto grep = Popen::create({"grep", "sp"}, grepCfg).or_throw();
@@ -143,7 +143,7 @@ TEST_CASE("Popen destructor") {
     // `cat` with a Pipe stdin blocks until EOF.  The destructor must close
     // std_in (sending EOF) and then wait — without hanging.
     PopenConfig cfg;
-    cfg.stdin = Redirection::Pipe();
+    cfg.stdin_ = Redirection::Pipe();
     {
       auto p = Popen::create({"cat"}, cfg).or_throw();
       // No data written, no explicit close.  Destructor handles everything.
@@ -254,62 +254,62 @@ TEST_CASE("signal methods") {
 TEST_CASE("Popen::communicate") {
   SECTION("captures stdout with no stdin") {
     subprocess::PopenConfig cfg;
-    cfg.stdout = subprocess::Redirection::Pipe();
+    cfg.stdout_ = subprocess::Redirection::Pipe();
     auto p = subprocess::Popen::create({"echo", "hello"}, cfg).or_throw();
     auto result = p.communicate().or_throw();
-    REQUIRE(result.stdout == "hello\n");
-    REQUIRE(result.stderr.empty());
+    REQUIRE(result.out == "hello\n");
+    REQUIRE(result.err.empty());
     REQUIRE(result.success());
   }
 
   SECTION("sends stdin input and captures stdout") {
     subprocess::PopenConfig cfg;
-    cfg.stdin = subprocess::Redirection::Pipe();
-    cfg.stdout = subprocess::Redirection::Pipe();
+    cfg.stdin_ = subprocess::Redirection::Pipe();
+    cfg.stdout_ = subprocess::Redirection::Pipe();
     auto p = subprocess::Popen::create({"cat"}, cfg).or_throw();
     auto result = p.communicate("hello world").or_throw();
-    REQUIRE(result.stdout == "hello world");
+    REQUIRE(result.out == "hello world");
     REQUIRE(result.success());
   }
 
   SECTION("captures both stdout and stderr") {
     subprocess::PopenConfig cfg;
-    cfg.stdout = subprocess::Redirection::Pipe();
-    cfg.stderr = subprocess::Redirection::Pipe();
+    cfg.stdout_ = subprocess::Redirection::Pipe();
+    cfg.stderr_ = subprocess::Redirection::Pipe();
     auto p =
         subprocess::Popen::create(
             {"/bin/sh", "-c", "echo out; echo err >&2"}, cfg)
             .or_throw();
     auto result = p.communicate().or_throw();
-    REQUIRE(result.stdout == "out\n");
-    REQUIRE(result.stderr == "err\n");
+    REQUIRE(result.out == "out\n");
+    REQUIRE(result.err == "err\n");
     REQUIRE(result.success());
   }
 
   SECTION("large input does not deadlock") {
     // 1 MB of data — well above the typical pipe buffer size (~64 KB).
     subprocess::PopenConfig cfg;
-    cfg.stdin = subprocess::Redirection::Pipe();
-    cfg.stdout = subprocess::Redirection::Pipe();
+    cfg.stdin_ = subprocess::Redirection::Pipe();
+    cfg.stdout_ = subprocess::Redirection::Pipe();
     auto p = subprocess::Popen::create({"cat"}, cfg).or_throw();
     std::string big_input(1024 * 1024, 'x');
     auto result = p.communicate(big_input).or_throw();
-    REQUIRE(result.stdout == big_input);
+    REQUIRE(result.out == big_input);
     REQUIRE(result.success());
   }
 
   SECTION("communicate_bytes with binary data") {
     subprocess::PopenConfig cfg;
-    cfg.stdin = subprocess::Redirection::Pipe();
-    cfg.stdout = subprocess::Redirection::Pipe();
+    cfg.stdin_ = subprocess::Redirection::Pipe();
+    cfg.stdout_ = subprocess::Redirection::Pipe();
     auto p = subprocess::Popen::create({"cat"}, cfg).or_throw();
     std::vector<uint8_t> data = { 0x00, 0x01, 0xFF, 0x7F };
     auto result = p.communicate_bytes(data).or_throw();
-    REQUIRE(result.stdout.size() == 4);
-    REQUIRE(static_cast<uint8_t>(result.stdout[0]) == 0x00);
-    REQUIRE(static_cast<uint8_t>(result.stdout[1]) == 0x01);
-    REQUIRE(static_cast<uint8_t>(result.stdout[2]) == 0xFF);
-    REQUIRE(static_cast<uint8_t>(result.stdout[3]) == 0x7F);
+    REQUIRE(result.out.size() == 4);
+    REQUIRE(static_cast<uint8_t>(result.out[0]) == 0x00);
+    REQUIRE(static_cast<uint8_t>(result.out[1]) == 0x01);
+    REQUIRE(static_cast<uint8_t>(result.out[2]) == 0xFF);
+    REQUIRE(static_cast<uint8_t>(result.out[3]) == 0x7F);
     REQUIRE(result.success());
   }
 
@@ -328,14 +328,14 @@ TEST_CASE("Popen::communicate") {
     subprocess::PopenConfig cfg;
     auto p = subprocess::Popen::create({"true"}, cfg).or_throw();
     auto result = p.communicate().or_throw();
-    REQUIRE(result.stdout.empty());
-    REQUIRE(result.stderr.empty());
+    REQUIRE(result.out.empty());
+    REQUIRE(result.err.empty());
     REQUIRE(result.success());
   }
 
   SECTION("communicate propagates non-zero exit status") {
     subprocess::PopenConfig cfg;
-    cfg.stdout = subprocess::Redirection::Pipe();
+    cfg.stdout_ = subprocess::Redirection::Pipe();
     auto p =
         subprocess::Popen::create({"/bin/sh", "-c", "exit 42"}, cfg).or_throw();
     auto result = p.communicate().or_throw();

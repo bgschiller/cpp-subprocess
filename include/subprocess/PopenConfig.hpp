@@ -14,11 +14,11 @@ namespace subprocess {
 
   struct PopenConfig {
     /// How to configure the executed program's standard input.
-    Redirection stdin{ Redirection::None() };
+    Redirection stdin_{ Redirection::None() };
     /// How to configure the executed program's standard output.
-    Redirection stdout{ Redirection::None() };
+    Redirection stdout_{ Redirection::None() };
     /// How to configure the executed program's standard error.
-    Redirection stderr{ Redirection::None() };
+    Redirection stderr_{ Redirection::None() };
     /// Whether the `Popen` instance is initially detached.
     bool detached{ false };
 

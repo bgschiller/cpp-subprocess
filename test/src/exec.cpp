@@ -49,7 +49,7 @@ TEST_CASE("Exec::popen") {
     subprocess::Result<subprocess::Popen> result =
         subprocess::Exec::cmd("echo")
             .arg("subprocess")
-            .stdout(subprocess::Redirection::Pipe())
+            .stdout_(subprocess::Redirection::Pipe())
             .popen();
     REQUIRE(result.ok());
     subprocess::Popen proc = result.take_value();
@@ -64,7 +64,7 @@ TEST_CASE("Exec::popen") {
     subprocess::Result<subprocess::Popen> result =
         subprocess::Exec::cmd("echo")
             .add_args({"a", "b", "c"})
-            .stdout(subprocess::Redirection::Pipe())
+            .stdout_(subprocess::Redirection::Pipe())
             .popen();
     REQUIRE(result.ok());
     subprocess::Popen proc = result.take_value();
@@ -135,7 +135,7 @@ TEST_CASE("Exec::stream_stdout") {
     subprocess::Result<boost::fdistream> result =
         subprocess::Exec::cmd("echo")
             .arg("world")
-            .stdout(subprocess::Redirection::Pipe())
+            .stdout_(subprocess::Redirection::Pipe())
             .stream_stdout();
     REQUIRE(result.ok());
     std::string line;
@@ -167,7 +167,7 @@ TEST_CASE("Exec::stream_stdin") {
   SECTION("automatically sets stdin to pipe when not configured") {
     // cat with stdout discarded; writing to the returned stream must not fail.
     subprocess::Result<boost::fdostream> result =
-        subprocess::Exec::cmd("cat").stdout(subprocess::NullFile{}).stream_stdin();
+        subprocess::Exec::cmd("cat").stdout_(subprocess::NullFile{}).stream_stdin();
     REQUIRE(result.ok());
     *result << "hello subprocess\n";
     result->close();
@@ -176,8 +176,8 @@ TEST_CASE("Exec::stream_stdin") {
   SECTION("works when stdin already explicitly set to Pipe") {
     subprocess::Result<boost::fdostream> result =
         subprocess::Exec::cmd("cat")
-            .stdin(subprocess::Redirection::Pipe())
-            .stdout(subprocess::NullFile{})
+            .stdin_(subprocess::Redirection::Pipe())
+            .stdout_(subprocess::NullFile{})
             .stream_stdin();
     REQUIRE(result.ok());
     *result << "data\n";
@@ -210,7 +210,7 @@ TEST_CASE("Exec::shell") {
         subprocess::Exec::shell("echo hello world").capture();
     REQUIRE(result.ok());
     REQUIRE(result->success());
-    REQUIRE(result->stdout == "hello world\n");
+    REQUIRE(result->out == "hello world\n");
   }
 
   SECTION("shell features: command substitution") {
@@ -218,7 +218,7 @@ TEST_CASE("Exec::shell") {
         subprocess::Exec::shell("echo $(echo nested)").capture();
     REQUIRE(result.ok());
     REQUIRE(result->success());
-    REQUIRE(result->stdout == "nested\n");
+    REQUIRE(result->out == "nested\n");
   }
 
   SECTION("shell features: pipeline in string") {
@@ -226,7 +226,7 @@ TEST_CASE("Exec::shell") {
         subprocess::Exec::shell("echo foo | tr a-z A-Z").capture();
     REQUIRE(result.ok());
     REQUIRE(result->success());
-    REQUIRE(result->stdout == "FOO\n");
+    REQUIRE(result->out == "FOO\n");
   }
 
   SECTION("non-zero exit status is reflected") {
@@ -254,8 +254,8 @@ TEST_CASE("Exec::capture") {
         subprocess::Exec::cmd("echo").arg("hello").capture();
     REQUIRE(result.ok());
     REQUIRE(result->success());
-    REQUIRE(result->stdout == "hello\n");
-    REQUIRE(result->stderr.empty());
+    REQUIRE(result->out == "hello\n");
+    REQUIRE(result->err.empty());
   }
 
   SECTION("captures stderr separately from stdout") {
@@ -266,16 +266,16 @@ TEST_CASE("Exec::capture") {
             .capture();
     REQUIRE(result.ok());
     REQUIRE(result->success());
-    REQUIRE(result->stdout == "out\n");
-    REQUIRE(result->stderr == "err\n");
+    REQUIRE(result->out == "out\n");
+    REQUIRE(result->err == "err\n");
   }
 
   SECTION("feeds stdin data and captures stdout") {
     subprocess::Result<subprocess::CaptureData> result =
-        subprocess::Exec::cmd("cat").stdin(std::string("hello subprocess\n")).capture();
+        subprocess::Exec::cmd("cat").stdin_(std::string("hello subprocess\n")).capture();
     REQUIRE(result.ok());
     REQUIRE(result->success());
-    REQUIRE(result->stdout == "hello subprocess\n");
+    REQUIRE(result->out == "hello subprocess\n");
   }
 
   SECTION("exit status reflects command exit code") {
@@ -291,11 +291,11 @@ TEST_CASE("Exec::capture") {
     subprocess::Result<subprocess::CaptureData> result =
         subprocess::Exec::cmd("echo")
             .arg("piped")
-            .stdout(subprocess::Redirection::Pipe())
-            .stderr(subprocess::Redirection::Pipe())
+            .stdout_(subprocess::Redirection::Pipe())
+            .stderr_(subprocess::Redirection::Pipe())
             .capture();
     REQUIRE(result.ok());
-    REQUIRE(result->stdout == "piped\n");
+    REQUIRE(result->out == "piped\n");
   }
 
   SECTION("nonexistent command propagates launch error") {
@@ -307,9 +307,9 @@ TEST_CASE("Exec::capture") {
   SECTION("capture with binary stdin data") {
     std::vector<uint8_t> data{ 'a', 'b', 'c', '\n' };
     subprocess::Result<subprocess::CaptureData> result =
-        subprocess::Exec::cmd("cat").stdin(data).capture();
+        subprocess::Exec::cmd("cat").stdin_(data).capture();
     REQUIRE(result.ok());
-    REQUIRE(result->stdout == "abc\n");
+    REQUIRE(result->out == "abc\n");
   }
 }
 
@@ -328,7 +328,7 @@ TEST_CASE("Exec::shell platform dispatch") {
     // Both sh and cmd.exe echo the argument followed by a newline.
     // On Windows cmd.exe may include a trailing space before the newline, so
     // we just check that the word "hello" appears in the output.
-    REQUIRE(result->stdout.find("hello") != std::string::npos);
+    REQUIRE(result->out.find("hello") != std::string::npos);
   }
 }
 

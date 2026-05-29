@@ -95,91 +95,91 @@ namespace subprocess {
   }
   Exec&& Exec::cwd(const std::filesystem::path& dir) && { return std::move(this->cwd(dir)); }
 
-  Exec& Exec::stdin(const std::vector<uint8_t>& data) & {
-    if (!config.stdin.is_a<Redirection::None>()) {
+  Exec& Exec::stdin_(const std::vector<uint8_t>& data) & {
+    if (!config.stdin_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdin is already set");
     }
-    config.stdin = Redirection::Pipe();
+    config.stdin_ = Redirection::Pipe();
     stdin_data = data;
     return *this;
   }
-  Exec&& Exec::stdin(const std::vector<uint8_t>& data) && { return std::move(this->stdin(data)); }
+  Exec&& Exec::stdin_(const std::vector<uint8_t>& data) && { return std::move(this->stdin_(data)); }
 
-  Exec& Exec::stdin(const std::string& data) & {
-    if (!config.stdin.is_a<Redirection::None>()) {
+  Exec& Exec::stdin_(const std::string& data) & {
+    if (!config.stdin_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdin is already set");
     }
-    config.stdin = Redirection::Pipe();
+    config.stdin_ = Redirection::Pipe();
     stdin_data = std::vector<uint8_t>(data.begin(), data.end());
     return *this;
   }
-  Exec&& Exec::stdin(const std::string& data) && { return std::move(this->stdin(data)); }
+  Exec&& Exec::stdin_(const std::string& data) && { return std::move(this->stdin_(data)); }
 
-  Exec& Exec::stdin(Redirection redirection) & {
+  Exec& Exec::stdin_(Redirection redirection) & {
     bool pipeReplacingPipe =
-        config.stdin.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
-    if (!config.stdin.is_a<Redirection::None>() && !pipeReplacingPipe) {
+        config.stdin_.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
+    if (!config.stdin_.is_a<Redirection::None>() && !pipeReplacingPipe) {
       throw std::runtime_error("stdin is already set");
     }
-    config.stdin = std::move(redirection);
+    config.stdin_ = std::move(redirection);
     return *this;
   }
-  Exec&& Exec::stdin(Redirection redirection) && {
-    return std::move(this->stdin(std::move(redirection)));
+  Exec&& Exec::stdin_(Redirection redirection) && {
+    return std::move(this->stdin_(std::move(redirection)));
   }
 
-  Exec& Exec::stdin(NullFile) & {
-    if (!config.stdin.is_a<Redirection::None>()) {
+  Exec& Exec::stdin_(NullFile) & {
+    if (!config.stdin_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdin is already set");
     }
-    config.stdin = Redirection::Read("/dev/null").or_throw();
+    config.stdin_ = Redirection::Read("/dev/null").or_throw();
     return *this;
   }
-  Exec&& Exec::stdin(NullFile nf) && { return std::move(this->stdin(nf)); }
+  Exec&& Exec::stdin_(NullFile nf) && { return std::move(this->stdin_(nf)); }
 
-  Exec& Exec::stdout(Redirection redirection) & {
+  Exec& Exec::stdout_(Redirection redirection) & {
     bool pipeReplacingPipe =
-        config.stdout.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
-    if (!config.stdout.is_a<Redirection::None>() && !pipeReplacingPipe) {
+        config.stdout_.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
+    if (!config.stdout_.is_a<Redirection::None>() && !pipeReplacingPipe) {
       throw std::runtime_error("stdout is already set");
     }
-    config.stdout = std::move(redirection);
+    config.stdout_ = std::move(redirection);
     return *this;
   }
-  Exec&& Exec::stdout(Redirection redirection) && {
-    return std::move(this->stdout(std::move(redirection)));
+  Exec&& Exec::stdout_(Redirection redirection) && {
+    return std::move(this->stdout_(std::move(redirection)));
   }
 
-  Exec& Exec::stdout(NullFile) & {
-    if (!config.stdout.is_a<Redirection::None>()) {
+  Exec& Exec::stdout_(NullFile) & {
+    if (!config.stdout_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdout is already set");
     }
-    config.stdout = Redirection::Write("/dev/null").or_throw();
+    config.stdout_ = Redirection::Write("/dev/null").or_throw();
     return *this;
   }
-  Exec&& Exec::stdout(NullFile nf) && { return std::move(this->stdout(nf)); }
+  Exec&& Exec::stdout_(NullFile nf) && { return std::move(this->stdout_(nf)); }
 
-  Exec& Exec::stderr(Redirection redirection) & {
+  Exec& Exec::stderr_(Redirection redirection) & {
     bool pipeReplacingPipe =
-        config.stderr.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
-    if (!config.stderr.is_a<Redirection::None>() && !pipeReplacingPipe) {
+        config.stderr_.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
+    if (!config.stderr_.is_a<Redirection::None>() && !pipeReplacingPipe) {
       throw std::runtime_error("stderr is already set");
     }
-    config.stderr = std::move(redirection);
+    config.stderr_ = std::move(redirection);
     return *this;
   }
-  Exec&& Exec::stderr(Redirection redirection) && {
-    return std::move(this->stderr(std::move(redirection)));
+  Exec&& Exec::stderr_(Redirection redirection) && {
+    return std::move(this->stderr_(std::move(redirection)));
   }
 
-  Exec& Exec::stderr(NullFile) & {
-    if (!config.stderr.is_a<Redirection::None>()) {
+  Exec& Exec::stderr_(NullFile) & {
+    if (!config.stderr_.is_a<Redirection::None>()) {
       throw std::runtime_error("stderr is already set");
     }
-    config.stderr = Redirection::Write("/dev/null").or_throw();
+    config.stderr_ = Redirection::Write("/dev/null").or_throw();
     return *this;
   }
-  Exec&& Exec::stderr(NullFile nf) && { return std::move(this->stderr(nf)); }
+  Exec&& Exec::stderr_(NullFile nf) && { return std::move(this->stderr_(nf)); }
 
   Result<Popen> Exec::popen() {
     // Build argv: command is argv[0], followed by any extra args.
@@ -198,8 +198,8 @@ namespace subprocess {
   }
 
   Result<boost::fdistream> Exec::stream_stdout() {
-    if (config.stdout.is_a<Redirection::None>()) {
-      config.stdout = Redirection::Pipe();
+    if (config.stdout_.is_a<Redirection::None>()) {
+      config.stdout_ = Redirection::Pipe();
     }
     auto p = popen();
     if (!p.ok()) return p.take_error();
@@ -215,11 +215,11 @@ namespace subprocess {
   }
 
   Result<CaptureData> Exec::capture() {
-    if (config.stdout.is_a<Redirection::None>()) {
-      config.stdout = Redirection::Pipe();
+    if (config.stdout_.is_a<Redirection::None>()) {
+      config.stdout_ = Redirection::Pipe();
     }
-    if (config.stderr.is_a<Redirection::None>()) {
-      config.stderr = Redirection::Pipe();
+    if (config.stderr_.is_a<Redirection::None>()) {
+      config.stderr_ = Redirection::Pipe();
     }
 
     auto p = popen();
@@ -230,8 +230,8 @@ namespace subprocess {
   }
 
   Result<boost::fdostream> Exec::stream_stdin() {
-    if (config.stdin.is_a<Redirection::None>()) {
-      config.stdin = Redirection::Pipe();
+    if (config.stdin_.is_a<Redirection::None>()) {
+      config.stdin_ = Redirection::Pipe();
     }
     auto p = popen();
     if (!p.ok()) return p.take_error();

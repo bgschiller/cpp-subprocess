@@ -17,7 +17,7 @@ namespace subprocess::internal {
     constexpr auto prefix = std::string_view{ "with T = " };
     constexpr auto suffix = "; ";
     constexpr auto function = std::string_view{ __PRETTY_FUNCTION__ };
-#elif defined(__MSC_VER)
+#elif defined(_MSC_VER)
     constexpr auto prefix = std::string_view{ "get_type_name<" };
     constexpr auto suffix = ">(void)";
     constexpr auto function = std::string_view{ __FUNCSIG__ };

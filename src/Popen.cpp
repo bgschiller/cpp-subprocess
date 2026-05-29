@@ -201,7 +201,7 @@ std::optional<PopenError> Popen::os_start(
 
   // ---- stdin ---------------------------------------------------------------
   {
-    const Redirection& r = config.stdin;
+    const Redirection& r = config.stdin_;
     if (r.is_a<Redirection::Pipe>()) {
       auto stream = prepare_pipe_to_child(child_stdin_fd);
       if (!stream.ok()) return stream.take_error();
@@ -217,11 +217,11 @@ std::optional<PopenError> Popen::os_start(
   }
 
   // ---- stdout / stderr (need to detect Merge before assigning) -------------
-  bool err_to_out = config.stderr.is_a<Redirection::Merge>();
-  bool out_to_err = config.stdout.is_a<Redirection::Merge>();
+  bool err_to_out = config.stderr_.is_a<Redirection::Merge>();
+  bool out_to_err = config.stdout_.is_a<Redirection::Merge>();
 
   {
-    const Redirection& r = config.stdout;
+    const Redirection& r = config.stdout_;
     if (r.is_a<Redirection::Pipe>()) {
       auto stream = prepare_pipe_from_child(child_stdout_fd);
       if (!stream.ok()) return stream.take_error();
@@ -236,7 +236,7 @@ std::optional<PopenError> Popen::os_start(
   }
 
   {
-    const Redirection& r = config.stderr;
+    const Redirection& r = config.stderr_;
     if (r.is_a<Redirection::Pipe>()) {
       auto stream = prepare_pipe_from_child(child_stderr_fd);
       if (!stream.ok()) return stream.take_error();
@@ -473,7 +473,7 @@ std::optional<PopenError> Popen::os_start(
   set_inheritable(std::get<0>(exec_fail_pipe), false);
   set_inheritable(std::get<1>(exec_fail_pipe), false);
   {
-    auto child_endsR = setup_streams(config.stdin, config.stdout, config.stderr);
+    auto child_endsR = setup_streams(config.stdin_, config.stdout_, config.stderr_);
     if (!child_endsR.ok()) return child_endsR.take_error();
     auto child_ends = child_endsR.take_value();
     std::optional<std::vector<std::string>> childEnv;
