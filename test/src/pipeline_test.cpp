@@ -1,3 +1,6 @@
+#ifdef _WIN32
+#  define _CRT_SECURE_NO_WARNINGS
+#endif
 #include <catch2/catch.hpp>
 
 #include "subprocess/Exec.hpp"

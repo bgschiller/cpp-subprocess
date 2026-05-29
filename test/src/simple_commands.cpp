@@ -1,10 +1,15 @@
-#include <catch2/catch.hpp>
-#ifndef _WIN32
+#ifdef _WIN32
+#  define _CRT_SECURE_NO_WARNINGS
+#  include <fcntl.h>
+#  include <io.h>
+#  include <signal.h>
+#else
 #  include <fcntl.h>
 #  include <signal.h>
 #  include <sys/wait.h>
 #  include <unistd.h>
 #endif
+#include <catch2/catch.hpp>
 #include <optional>
 #include <string>
 #include <vector>
@@ -75,10 +80,12 @@ TEST_CASE("echo time") {
     fclose(fruits);
 
     PopenConfig config;
+#ifndef _WIN32
     SECTION("file descriptor") {
       int fruitsFd = open("fruits.tmp", O_RDONLY);
       config.stdin_ = std::move(Redirection::FileDescriptor(fruitsFd));
     }
+#endif
     SECTION("shorthand") {
       config.stdin_ = Redirection::Read("fruits.tmp").or_throw();
     }
@@ -90,6 +97,7 @@ TEST_CASE("echo time") {
     REQUIRE(grep.std_out->slurp() == "apple\npineapple\n");
   }
 
+#ifndef _WIN32
   SECTION("Two process pipeline") {
     FILE* veggies = fopen("veggies.tmp", "w");
     fprintf(veggies, "brussels sprouts\nkale\ncarrots\nbroccoli\ncauliflower\neggplant\nspinach\n");
@@ -112,6 +120,7 @@ TEST_CASE("echo time") {
     REQUIRE(cExit.success());
     REQUIRE(grep.std_out->slurp() == "brussels sprouts\nspinach\n");
   }
+#endif
 }
 
 TEST_CASE("Popen destructor") {
@@ -181,7 +190,8 @@ TEST_CASE("Popen destructor") {
 }
 
 TEST_CASE("signal methods") {
-  SECTION("kill() terminates a running process with SIGKILL") {
+  SECTION("kill() terminates a running process") {
+#ifndef _WIN32
     auto p = subprocess::Popen::create({"sleep", "60"}, subprocess::PopenConfig{}).or_throw();
     REQUIRE(p.pid().has_value());
 
@@ -192,11 +202,20 @@ TEST_CASE("signal methods") {
     REQUIRE_FALSE(exit.success());
     REQUIRE(exit.is_a<subprocess::ExitStatus::Signaled>());
     REQUIRE(exit.get<subprocess::ExitStatus::Signaled>().signal == SIGKILL);
+#else
+    auto p = subprocess::Popen::create({"cmd.exe", "/c", "timeout /t 60 >nul"}, subprocess::PopenConfig{}).or_throw();
+    REQUIRE(p.pid().has_value());
+
+    auto sig_result = p.kill();
+    REQUIRE(sig_result.ok());
+
+    auto exit = p.wait().or_throw();
+    REQUIRE_FALSE(exit.success());
+#endif
   }
 
-  SECTION("terminate() sends SIGTERM to a running process") {
-    // Use a process that explicitly handles SIGTERM and exits non-zero
-    // so we can distinguish a signal death from a clean exit.
+  SECTION("terminate() terminates a running process") {
+#ifndef _WIN32
     auto p = subprocess::Popen::create({"sleep", "60"}, subprocess::PopenConfig{}).or_throw();
     REQUIRE(p.pid().has_value());
 
@@ -207,8 +226,19 @@ TEST_CASE("signal methods") {
     REQUIRE_FALSE(exit.success());
     REQUIRE(exit.is_a<subprocess::ExitStatus::Signaled>());
     REQUIRE(exit.get<subprocess::ExitStatus::Signaled>().signal == SIGTERM);
+#else
+    auto p = subprocess::Popen::create({"cmd.exe", "/c", "timeout /t 60 >nul"}, subprocess::PopenConfig{}).or_throw();
+    REQUIRE(p.pid().has_value());
+
+    auto sig_result = p.terminate();
+    REQUIRE(sig_result.ok());
+
+    auto exit = p.wait().or_throw();
+    REQUIRE_FALSE(exit.success());
+#endif
   }
 
+#ifndef _WIN32
   SECTION("send_signal() with an arbitrary signal") {
     auto p = subprocess::Popen::create({"sleep", "60"}, subprocess::PopenConfig{}).or_throw();
     REQUIRE(p.pid().has_value());
@@ -221,9 +251,14 @@ TEST_CASE("signal methods") {
     REQUIRE(exit.is_a<subprocess::ExitStatus::Signaled>());
     REQUIRE(exit.get<subprocess::ExitStatus::Signaled>().signal == SIGUSR1);
   }
+#endif
 
   SECTION("send_signal() on a finished process returns LogicError") {
+#ifndef _WIN32
     auto p = subprocess::Popen::create({"true"}, subprocess::PopenConfig{}).or_throw();
+#else
+    auto p = subprocess::Popen::create({"cmd.exe", "/c", "exit 0"}, subprocess::PopenConfig{}).or_throw();
+#endif
     p.wait().or_throw();  // process has now finished
 
     auto sig_result = p.send_signal(SIGTERM);
@@ -233,7 +268,11 @@ TEST_CASE("signal methods") {
   }
 
   SECTION("kill() on a finished process returns LogicError") {
+#ifndef _WIN32
     auto p = subprocess::Popen::create({"true"}, subprocess::PopenConfig{}).or_throw();
+#else
+    auto p = subprocess::Popen::create({"cmd.exe", "/c", "exit 0"}, subprocess::PopenConfig{}).or_throw();
+#endif
     p.wait().or_throw();
 
     auto sig_result = p.kill();
@@ -242,7 +281,11 @@ TEST_CASE("signal methods") {
   }
 
   SECTION("terminate() on a finished process returns LogicError") {
+#ifndef _WIN32
     auto p = subprocess::Popen::create({"true"}, subprocess::PopenConfig{}).or_throw();
+#else
+    auto p = subprocess::Popen::create({"cmd.exe", "/c", "exit 0"}, subprocess::PopenConfig{}).or_throw();
+#endif
     p.wait().or_throw();
 
     auto sig_result = p.terminate();
@@ -364,6 +407,7 @@ TEST_CASE("exit status decoding") {
     REQUIRE(exit.get<ExitStatus::Exited>().code == 42);
   }
 
+#ifndef _WIN32
   SECTION("signal termination is decoded correctly") {
     auto p = Popen::create({"sleep", "60"}, PopenConfig{}).or_throw();
     auto maybe_pid = p.pid();
@@ -374,4 +418,5 @@ TEST_CASE("exit status decoding") {
     REQUIRE(exit.is_a<ExitStatus::Signaled>());
     REQUIRE(exit.get<ExitStatus::Signaled>().signal == SIGKILL);
   }
+#endif
 }
