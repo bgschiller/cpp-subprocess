@@ -34,7 +34,6 @@ jobs:
           cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/$INSTALL_LOCATION -DCMAKE_CXX_FLAGS=-Wno-deprecated-declarations
           cmake --build build --config Release
           cmake --build build --target install --config Release
-          cd ../Subprocess
 
       - name: configure
         run: cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/$INSTALL_LOCATION

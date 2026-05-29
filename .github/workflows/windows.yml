@@ -34,10 +34,9 @@ jobs:
           cmake -Bbuild -DCMAKE_INSTALL_PREFIX="$HOME/$env:INSTALL_LOCATION"
           cmake --build build --config Release
           cmake --build build --target install --config Release
-          cd ../Subprocess
 
       - name: configure
-        run: cmake -Bbuild -DCMAKE_INSTALL_PREFIX="$HOME/$env:INSTALL_LOCATION"
+        run: cmake -Bbuild -DCMAKE_INSTALL_PREFIX="$HOME/$env:INSTALL_LOCATION" -DCMAKE_PREFIX_PATH="$HOME/$env:INSTALL_LOCATION"
 
       - name: build
         run: cmake --build build --config "$env:BUILD_TYPE" -j4
