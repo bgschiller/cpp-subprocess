@@ -1,5 +1,15 @@
 #include "subprocess/Redirection.hpp"
 
+#include <errno.h>
+#include <string.h>
+
+#ifdef _WIN32
+#include <io.h>
+#include <share.h>
+#else
+#include <unistd.h>
+#endif
+
 #include "subprocess/variant_helpers.hpp"
 
 using namespace subprocess;
@@ -7,7 +17,11 @@ using namespace subprocess::internal;
 
 void Redirection::FileDescriptor::discard() {
   if (_owned) {
+#ifdef _WIN32
+    _close(fd);
+#else
     ::close(fd);
+#endif
     _owned = false;
   }
 }
@@ -38,8 +52,13 @@ Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(FileDescript
   return *this;
 }
 
-Result<Redirection> Redirection::Open(const std::filesystem::path& path, int flags, mode_t mode) {
-  auto fd = ::open(path.c_str(), flags, mode);
+Result<Redirection> Redirection::Open(
+    const std::filesystem::path& path, int flags, mode_type mode) {
+#ifdef _WIN32
+  int fd = _sopen(path.string().c_str(), flags | _O_BINARY, _SH_DENYNO, mode);
+#else
+  int fd = ::open(path.c_str(), flags, mode);
+#endif
   if (fd < 0) {
     return PopenError{ PopenError::ErrKind::IoError, std::string("open(): ") +
                                                          std::to_string(errno) + std::string(" ") +
@@ -53,11 +72,11 @@ Result<Redirection> Redirection::Read(const std::filesystem::path& path) {
 }
 
 Result<Redirection> Redirection::Write(const std::filesystem::path& path) {
-  return Open(path.c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0644);
+  return Open(path.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
 }
 
 Result<Redirection> Redirection::Append(const std::filesystem::path& path) {
-  return Open(path.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644);
+  return Open(path.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);
 }
 
 Redirection::Redirection(Redirection&& other)

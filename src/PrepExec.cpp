@@ -1,3 +1,6 @@
+#ifndef _WIN32
+// PrepExec is the Unix fork/exec helper — it is not used on Windows.
+
 #include "subprocess/PrepExec.hpp"
 
 #include <string.h>
@@ -93,3 +96,4 @@ int32_t PrepExec::libc_exec() {
   }
   return errno;
 }
+#endif  // !_WIN32

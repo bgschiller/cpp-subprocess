@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Redirection.hpp"
+#include "detail/platform.hpp"
 
 namespace subprocess {
 
@@ -48,22 +49,27 @@ namespace subprocess {
      */
     std::optional<std::filesystem::path> cwd{ std::nullopt };
 
+#ifndef _WIN32
     /// Set user ID for the subprocess.
     ///
-    /// If specified, calls `setuid()` before execing the child process.
-    std::optional<uid_t> setuid{ std::nullopt };
+    /// If specified, calls `setuid()` before exec-ing the child process.
+    /// @note This field has no effect on Windows and is ignored.
+    std::optional<uint32_t> setuid{ std::nullopt };
 
     /// Set group ID for the subprocess.
     ///
-    /// If specified, calls `setgid()` before execing the child process.
-    std::optional<gid_t> setgid{ std::nullopt };
+    /// If specified, calls `setgid()` before exec-ing the child process.
+    /// @note This field has no effect on Windows and is ignored.
+    std::optional<uint32_t> setgid{ std::nullopt };
 
     /// Make the subprocess belong to a new process group.
     ///
-    /// If specified, calls `setpgid(0, 0)` before execing the child process.
+    /// If specified, calls `setpgid(0, 0)` before exec-ing the child process.
+    /// @note This field has no effect on Windows and is ignored.
     //
     // Not to be confused with the similarly named `setgid`.
     bool setpgid{ false };
+#endif  // !_WIN32
 
     /// Returns the environment of the current process.
     ///

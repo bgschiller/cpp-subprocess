@@ -1,9 +1,7 @@
 #ifndef SUBPROCESS_REDIRECTION_H_
 #define SUBPROCESS_REDIRECTION_H_
-#include <fcntl.h>
 #include <stdint.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <filesystem>
 #include <fstream>
@@ -12,6 +10,7 @@
 #include <variant>
 
 #include "subprocess/Result.hpp"
+#include "subprocess/detail/platform.hpp"
 #include "subprocess/variant_helpers.hpp"
 
 namespace subprocess {
@@ -91,7 +90,7 @@ namespace subprocess {
     /// You probably want one of Read, Write, or Append, which use this method
     /// behind the scenes but provide reasonable defaults for the flags and mode
     /// arguments.
-    static Result<Redirection> Open(const std::filesystem::path& path, int flags, mode_t mode);
+    static Result<Redirection> Open(const std::filesystem::path& path, int flags, mode_type mode);
 
     /// Read the stream from the specified path.
     ///

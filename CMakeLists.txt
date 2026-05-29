@@ -136,15 +136,15 @@ message(STATUS "Finished setting up include directories.")
 
 # Identify and link with the specific "packages" the project uses
 #find_package(package_name package_version REQUIRED package_type [other_options])
-target_link_libraries(
- ${PROJECT_NAME}
- #PUBLIC
-   # some public library
- PRIVATE
-   pthread
-  #  ${PROJECT_NAME}_PROJECT_OPTIONS
-  #  ${PROJECT_NAME}_PROJECT_WARNINGS
-)
+# On Unix, link against libpthread.  Windows has its own threading primitives
+# built into the CRT, so no additional library is needed there.
+if(NOT WIN32)
+  target_link_libraries(
+    ${PROJECT_NAME}
+    PRIVATE
+      pthread
+  )
+endif()
 
 verbose_message("Successfully added all dependencies and linked against them.")
 

@@ -17,7 +17,11 @@ namespace subprocess {
   }
 
   Exec Exec::shell(std::string cmdstr) {
+#ifdef _WIN32
+    return Exec::cmd("cmd.exe").arg("/c").add_args({ std::move(cmdstr) });
+#else
     return Exec::cmd("sh").arg("-c").add_args({ std::move(cmdstr) });
+#endif
   }
 
   Exec& Exec::arg(std::string arg) & {

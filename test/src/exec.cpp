@@ -1,8 +1,10 @@
 #include <catch2/catch.hpp>
-#include <fcntl.h>
+#ifndef _WIN32
+#  include <fcntl.h>
+#  include <unistd.h>
+#endif
 #include <optional>
 #include <string>
-#include <unistd.h>
 
 #include "subprocess/CaptureData.hpp"
 #include "subprocess/Exec.hpp"
@@ -310,3 +312,50 @@ TEST_CASE("Exec::capture") {
     REQUIRE(result->stdout == "abc\n");
   }
 }
+
+// ---------------------------------------------------------------------------
+// Platform-specific behaviour tests
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Exec::shell platform dispatch") {
+  SECTION("shell() runs a command through the system shell") {
+    // The exact shell (sh on Unix, cmd.exe on Windows) is an implementation
+    // detail.  We only verify that a simple expression evaluates correctly.
+    subprocess::Result<subprocess::CaptureData> result =
+        subprocess::Exec::shell("echo hello").capture();
+    REQUIRE(result.ok());
+    REQUIRE(result->success());
+    // Both sh and cmd.exe echo the argument followed by a newline.
+    // On Windows cmd.exe may include a trailing space before the newline, so
+    // we just check that the word "hello" appears in the output.
+    REQUIRE(result->stdout.find("hello") != std::string::npos);
+  }
+}
+
+#ifdef _WIN32
+TEST_CASE("Windows send_signal with arbitrary signal returns LogicError") {
+  subprocess::Result<subprocess::Popen> p =
+      subprocess::Exec::cmd("cmd.exe").arg("/c").arg("timeout /t 60 >NUL").popen();
+  REQUIRE(p.ok());
+  subprocess::Popen proc = p.take_value();
+  // SIGUSR1 (10) is not SIGTERM/SIGKILL; must return a LogicError on Windows.
+  subprocess::Result<std::nullopt_t> res = proc.send_signal(10);
+  REQUIRE_FALSE(res.ok());
+  // Clean up
+  proc.kill();
+  proc.wait();
+}
+#else
+TEST_CASE("Unix send_signal with SIGUSR1") {
+  // Basic sanity: sending SIGUSR1 to a sleeping process terminates it on Unix.
+  subprocess::Result<subprocess::Popen> p =
+      subprocess::Exec::cmd("sleep").arg("60").popen();
+  REQUIRE(p.ok());
+  subprocess::Popen proc = p.take_value();
+  subprocess::Result<std::nullopt_t> res = proc.send_signal(SIGUSR1);
+  REQUIRE(res.ok());
+  subprocess::Result<subprocess::ExitStatus> status = proc.wait();
+  REQUIRE(status.ok());
+  REQUIRE(status->is_a<subprocess::ExitStatus::Signaled>());
+}
+#endif

@@ -37,14 +37,17 @@
 
 
 // low-level read and write functions
-#ifdef _MSC_VER
+#ifdef _WIN32
 # include <io.h>
+// MSVC CRT provides _read, _write, _close; map them to the names used below.
+# define FDSTREAM_READ  ::_read
+# define FDSTREAM_WRITE ::_write
+# define FDSTREAM_CLOSE ::_close
 #else
 # include <unistd.h>
-//extern "C" {
-//    int write (int fd, const char* buf, int num);
-//    int read (int fd, char* buf, int num);
-//}
+# define FDSTREAM_READ  ::read
+# define FDSTREAM_WRITE ::write
+# define FDSTREAM_CLOSE ::close
 #endif
 
 
@@ -95,7 +98,7 @@ class fdoutbuf : public std::streambuf {
 
     void close() {
       if (is_open()) {
-        ::close(fd);
+        FDSTREAM_CLOSE(fd);
       }
       _is_open = false;
     }
@@ -105,7 +108,7 @@ class fdoutbuf : public std::streambuf {
     virtual int_type overflow (int_type c) {
         if (c != EOF) {
             char z = static_cast<char>(c);
-            if (write (fd, &z, 1) != 1) {
+            if (FDSTREAM_WRITE(fd, &z, 1) != 1) {
                 return EOF;
             }
         }
@@ -115,7 +118,7 @@ class fdoutbuf : public std::streambuf {
     virtual
     std::streamsize xsputn (const char* s,
                             std::streamsize num) {
-        return write(fd, s, static_cast<size_t>(num));
+        return FDSTREAM_WRITE(fd, s, static_cast<unsigned int>(num));
     }
 };
 
@@ -213,7 +216,7 @@ class fdinbuf : public std::streambuf {
     }
 
     void close() {
-      if (is_open()) ::close(fd);
+      if (is_open()) FDSTREAM_CLOSE(fd);
       _is_open = false;
     }
 
@@ -243,7 +246,7 @@ class fdinbuf : public std::streambuf {
         memmove (buffer+(pbSize-numPutback), gptr()-numPutback,
                 numPutback);
         // read at most bufSize new characters
-        auto num = read (fd, buffer+pbSize, bufSize);
+        auto num = FDSTREAM_READ(fd, buffer+pbSize, static_cast<unsigned int>(bufSize));
         if (num <= 0) {
             // ERROR or EOF
             return EOF;

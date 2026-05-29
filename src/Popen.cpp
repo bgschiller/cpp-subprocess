@@ -1,5 +1,9 @@
 #include "subprocess/Popen.hpp"
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#else
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -7,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 #include <algorithm>
 #include <thread>
@@ -70,6 +75,10 @@ Popen& Popen::operator=(Popen&& other) noexcept {
   return *this;
 }
 
+// ---------------------------------------------------------------------------
+// Common pipe-setup helpers (used by both Unix and Windows paths via CRT fds)
+// ---------------------------------------------------------------------------
+
 Result<boost::fdostream> prepare_pipe_to_child(int& child_end) {
   auto pi = pipe();
   if (!pi.ok()) return pi.take_error();
@@ -96,6 +105,282 @@ Result<const std::nullopt_t> prepare_file(int fd, int& child_end) {
   return std::nullopt;
 }
 
+#ifdef _WIN32
+
+// ---------------------------------------------------------------------------
+// Windows-specific helpers
+// ---------------------------------------------------------------------------
+
+/// Quote a single argument following the MSVC / Win32 command-line rules.
+/// See: https://docs.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments
+static std::string quote_windows_arg(const std::string& arg) {
+  // Empty argument must be represented as a pair of double quotes.
+  if (arg.empty()) return "\"\"";
+
+  // Check whether quoting is necessary.
+  bool needs_quote = arg.find_first_of(" \t\n\v\"") != std::string::npos;
+  if (!needs_quote) return arg;
+
+  std::string result = "\"";
+  for (size_t i = 0; i < arg.size();) {
+    size_t num_backslashes = 0;
+    while (i < arg.size() && arg[i] == '\\') {
+      ++i;
+      ++num_backslashes;
+    }
+    if (i == arg.size()) {
+      // Trailing backslashes before the closing quote must be doubled.
+      for (size_t j = 0; j < num_backslashes * 2; ++j) result += '\\';
+    } else if (arg[i] == '"') {
+      // Backslashes immediately preceding a quote must be doubled, then the
+      // quote itself must be escaped with an additional backslash.
+      for (size_t j = 0; j < num_backslashes * 2 + 1; ++j) result += '\\';
+      result += '"';
+      ++i;
+    } else {
+      // Regular backslashes do not need escaping.
+      for (size_t j = 0; j < num_backslashes; ++j) result += '\\';
+      result += arg[i++];
+    }
+  }
+  result += '"';
+  return result;
+}
+
+/// Build a flat CreateProcess-compatible command line from an argv vector.
+/// The first element is the program name; all elements are quoted as necessary.
+static std::string build_windows_cmdline(const std::vector<std::string>& argv) {
+  std::string cmdline;
+  for (const auto& arg : argv) {
+    if (!cmdline.empty()) cmdline += ' ';
+    cmdline += quote_windows_arg(arg);
+  }
+  return cmdline;
+}
+
+/// Build a Windows environment block from a list of KEY=VALUE pairs.
+/// The block is a sequence of NUL-terminated strings followed by a final NUL.
+static std::string build_windows_env_block(const std::vector<EnvVar>& env) {
+  std::string block;
+  for (const auto& [key, value] : env) {
+    block += key;
+    block += '=';
+    block += value;
+    block += '\0';
+  }
+  block += '\0';
+  return block;
+}
+
+/// Obtain the inheritable Windows HANDLE that corresponds to a CRT fd,
+/// making it inheritable if it wasn't already.
+static HANDLE fd_to_inheritable_handle(int fd) {
+  HANDLE raw = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
+  // Ensure the handle is marked inheritable so CreateProcess can duplicate it.
+  SetHandleInformation(raw, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+  return raw;
+}
+
+std::optional<PopenError> Popen::os_start(
+    const std::vector<std::string>& argv, const PopenConfig& config) {
+  // ---------------------------------------------------------------------------
+  // 1.  Build STARTUPINFOA.  We always specify all three std handles so that
+  //     the child never accidentally inherits our console streams when a pipe
+  //     is set up for a different stream.
+  // ---------------------------------------------------------------------------
+  STARTUPINFOA si{};
+  si.cb = sizeof(si);
+  si.dwFlags = STARTF_USESTDHANDLES;
+
+  // Child-side handles that must be closed after CreateProcess.
+  // They are CRT fds (from pipe()) that we convert to HANDLEs for STARTUPINFO.
+  // We track them as ints so we can _close() them after the child is spawned.
+  int child_stdin_fd = -1;
+  int child_stdout_fd = -1;
+  int child_stderr_fd = -1;
+
+  // ---- stdin ---------------------------------------------------------------
+  {
+    const Redirection& r = config.stdin;
+    if (r.is_a<Redirection::Pipe>()) {
+      auto stream = prepare_pipe_to_child(child_stdin_fd);
+      if (!stream.ok()) return stream.take_error();
+      std_in = stream.take_value();
+      si.hStdInput = fd_to_inheritable_handle(child_stdin_fd);
+    } else if (r.is_a<Redirection::FileDescriptor>()) {
+      int fd = r.get<Redirection::FileDescriptor>().fd;
+      si.hStdInput = fd_to_inheritable_handle(fd);
+    } else {
+      // Inherit parent's stdin.
+      si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    }
+  }
+
+  // ---- stdout / stderr (need to detect Merge before assigning) -------------
+  bool err_to_out = config.stderr.is_a<Redirection::Merge>();
+  bool out_to_err = config.stdout.is_a<Redirection::Merge>();
+
+  {
+    const Redirection& r = config.stdout;
+    if (r.is_a<Redirection::Pipe>()) {
+      auto stream = prepare_pipe_from_child(child_stdout_fd);
+      if (!stream.ok()) return stream.take_error();
+      std_out = stream.take_value();
+      si.hStdOutput = fd_to_inheritable_handle(child_stdout_fd);
+    } else if (r.is_a<Redirection::FileDescriptor>()) {
+      int fd = r.get<Redirection::FileDescriptor>().fd;
+      si.hStdOutput = fd_to_inheritable_handle(fd);
+    } else if (!r.is_a<Redirection::Merge>()) {
+      si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    }
+  }
+
+  {
+    const Redirection& r = config.stderr;
+    if (r.is_a<Redirection::Pipe>()) {
+      auto stream = prepare_pipe_from_child(child_stderr_fd);
+      if (!stream.ok()) return stream.take_error();
+      std_err = stream.take_value();
+      si.hStdError = fd_to_inheritable_handle(child_stderr_fd);
+    } else if (r.is_a<Redirection::FileDescriptor>()) {
+      int fd = r.get<Redirection::FileDescriptor>().fd;
+      si.hStdError = fd_to_inheritable_handle(fd);
+    } else if (!r.is_a<Redirection::Merge>()) {
+      si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    }
+  }
+
+  // Apply Merge redirections after both streams have been set up.
+  if (err_to_out) {
+    si.hStdError = si.hStdOutput;
+  } else if (out_to_err) {
+    si.hStdOutput = si.hStdError;
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2.  Assemble the command line.
+  //     If config.executable is set, it overrides argv[0] as the image path
+  //     but argv[0] still appears as the program name in the command line
+  //     (matching the Unix execve() semantics we emulate).
+  // ---------------------------------------------------------------------------
+  std::string cmdline = build_windows_cmdline(argv);
+
+  // ---------------------------------------------------------------------------
+  // 3.  Build the optional environment block.
+  // ---------------------------------------------------------------------------
+  std::string env_block;
+  if (config.env.has_value()) {
+    env_block = build_windows_env_block(*config.env);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4.  Determine the working directory (nullptr == inherit from parent).
+  // ---------------------------------------------------------------------------
+  std::string cwd_str;
+  const char* cwd_ptr = nullptr;
+  if (config.cwd.has_value()) {
+    cwd_str = config.cwd->string();
+    cwd_ptr = cwd_str.c_str();
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5.  Launch!
+  // ---------------------------------------------------------------------------
+  PROCESS_INFORMATION pi{};
+  const char* application = nullptr;
+  std::string app_str;
+  if (config.executable.has_value()) {
+    app_str = *config.executable;
+    application = app_str.c_str();
+  }
+
+  BOOL ok = CreateProcessA(
+      application,                                          // lpApplicationName
+      cmdline.empty() ? nullptr : cmdline.data(),           // lpCommandLine (mutable!)
+      nullptr,                                              // lpProcessAttributes
+      nullptr,                                              // lpThreadAttributes
+      TRUE,                                                 // bInheritHandles
+      0,                                                    // dwCreationFlags
+      config.env.has_value() ? env_block.data() : nullptr,  // lpEnvironment
+      cwd_ptr,                                              // lpCurrentDirectory
+      &si,                                                  // lpStartupInfo
+      &pi                                                   // lpProcessInformation
+  );
+
+  // Close child-side CRT fds now that CreateProcess has duplicated the handles.
+  if (child_stdin_fd != -1) _close(child_stdin_fd);
+  if (child_stdout_fd != -1) _close(child_stdout_fd);
+  if (child_stderr_fd != -1) _close(child_stderr_fd);
+
+  if (!ok) {
+    DWORD err = GetLastError();
+    char buf[256]{};
+    FormatMessageA(
+        FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, err, 0, buf,
+        sizeof(buf) - 1, nullptr);
+    return PopenError{ PopenError::IoError, std::string("CreateProcess failed: ") + buf };
+  }
+
+  // We don't need the thread handle.
+  CloseHandle(pi.hThread);
+
+  child_state = ChildState::Running{ pi.dwProcessId, static_cast<void*>(pi.hProcess) };
+  return std::nullopt;
+}
+
+Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
+  return child_state.match(
+      [](const ChildState::Preparing&) -> Result<const std::nullopt_t> {
+        panic("child_state == Preparing");
+        return std::nullopt;
+      },
+      [block, this](const ChildState::Running& r) -> Result<const std::nullopt_t> {
+        HANDLE h = static_cast<HANDLE>(r.process_handle);
+        DWORD timeout_ms = block ? INFINITE : 0;
+        DWORD result = WaitForSingleObject(h, timeout_ms);
+        if (result == WAIT_TIMEOUT) {
+          return std::nullopt;
+        }
+        if (result == WAIT_FAILED) {
+          return PopenError{ PopenError::IoError,
+                             std::string("WaitForSingleObject failed: ") +
+                                 std::to_string(static_cast<int>(GetLastError())) };
+        }
+        DWORD exit_code = 0;
+        GetExitCodeProcess(h, &exit_code);
+        CloseHandle(h);
+        this->child_state =
+            ChildState::Finished{ ExitStatus::Exited{ static_cast<int32_t>(exit_code) } };
+        return std::nullopt;
+      },
+      [](const ChildState::Finished&) -> Result<const std::nullopt_t> { return std::nullopt; });
+}
+
+Result<std::nullopt_t> Popen::send_signal(int signum) {
+  if (!child_state.is_a<ChildState::Running>()) {
+    return PopenError{ PopenError::LogicError, "send_signal: process is not running" };
+  }
+  HANDLE h = static_cast<HANDLE>(child_state.get<ChildState::Running>().process_handle);
+  // On Windows only forceful termination is possible; map SIGTERM and
+  // SIGKILL to TerminateProcess and reject arbitrary signal numbers.
+  if (signum == SIGTERM || signum == SIGKILL) {
+    if (!TerminateProcess(h, 1)) {
+      return PopenError{ PopenError::IoError,
+                         std::string("TerminateProcess failed: ") +
+                             std::to_string(static_cast<int>(GetLastError())) };
+    }
+    return std::nullopt;
+  }
+  return PopenError{ PopenError::LogicError,
+                     "send_signal: arbitrary signal numbers are not supported on Windows" };
+}
+
+#else  // !_WIN32
+
+// ---------------------------------------------------------------------------
+// Unix-specific helpers and implementations
+// ---------------------------------------------------------------------------
+
 enum class MergeKind {
   ErrToOut,  // 2>&1
   OutToErr,  // 1>&2
@@ -104,7 +389,10 @@ enum class MergeKind {
 
 Result<std::tuple<int, int, int>> Popen::setup_streams(
     const Redirection& stin, const Redirection& stout, const Redirection& sterr) {
-  int child_stdin = 0, child_stdout = 1, child_stderr = 2;
+  int child_stdin = 0;
+  int child_stdout = 1;
+  int child_stderr = 2;
+
   MergeKind merge = MergeKind::None;
 
   {
@@ -117,7 +405,7 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(
         },
         [&](const Redirection::FileDescriptor& file) { return prepare_file(file.fd, child_stdin); },
         [&](const Redirection::Merge&) -> Result<const std::nullopt_t> {
-          return PopenError{ PopenError::LogicError, "Redirection::Merge not valid for stdin" };
+          return PopenError{ PopenError::LogicError, "Redirection::Merge is not valid for stdin" };
         },
         [] { /* inherit fds */
              return std::nullopt;
@@ -286,51 +574,7 @@ int32_t Popen::do_exec(
   return just_exec.exec();
 }
 
-Result<std::nullopt_t> Popen::send_signal(int signum) {
-#ifdef _WIN32
-  // TODO: implement using TerminateProcess() on Windows (ticket 12)
-  (void)signum;
-  return PopenError{ PopenError::LogicError, "send_signal not implemented on Windows" };
-#else
-  if (!child_state.is_a<ChildState::Running>()) {
-    return PopenError{ PopenError::LogicError, "send_signal: process is not running" };
-  }
-  pid_t p = child_state.get<ChildState::Running>().pid;
-  if (::kill(p, signum) != 0) {
-    return PopenError{ PopenError::IoError, std::string("kill: ") + strerror(errno) };
-  }
-  return std::nullopt;
-#endif
-}
-
-Result<std::nullopt_t> Popen::terminate() { return send_signal(SIGTERM); }
-
-Result<std::nullopt_t> Popen::kill() { return send_signal(SIGKILL); }
-
-std::optional<ExitStatus> Popen::exit_status() const {
-  if (child_state.is_a<ChildState::Finished>()) {
-    auto finished = child_state.get<ChildState::Finished>();
-    return std::make_optional<ExitStatus>(std::move(finished.exit_status));
-  }
-  return std::nullopt;
-}
-
-std::optional<pid_t> Popen::pid() const {
-  if (child_state.is_a<ChildState::Running>()) {
-    return child_state.get<ChildState::Running>().pid;
-  }
-  return std::nullopt;
-}
-
-Result<ExitStatus> Popen::wait() {
-  while (child_state.is_a<ChildState::Running>()) {
-    auto res = waitpid(true);
-    if (!res.ok()) return res.take_error();
-  }
-  return *exit_status();
-}
-
-Result<const std::nullopt_t> Popen::waitpid(bool block) {
+Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
   return child_state.match(
       [](const ChildState::Preparing&) -> Result<const std::nullopt_t> {
         panic("child_state == Preparing");
@@ -358,6 +602,50 @@ Result<const std::nullopt_t> Popen::waitpid(bool block) {
       [](const ChildState::Finished&) -> Result<const std::nullopt_t> { return std::nullopt; });
 }
 
+Result<std::nullopt_t> Popen::send_signal(int signum) {
+  if (!child_state.is_a<ChildState::Running>()) {
+    return PopenError{ PopenError::LogicError, "send_signal: process is not running" };
+  }
+  pid_t p = child_state.get<ChildState::Running>().pid;
+  if (::kill(p, signum) != 0) {
+    return PopenError{ PopenError::IoError, std::string("kill: ") + strerror(errno) };
+  }
+  return std::nullopt;
+}
+
+#endif  // _WIN32
+
+// ---------------------------------------------------------------------------
+// Platform-neutral methods
+// ---------------------------------------------------------------------------
+
+Result<std::nullopt_t> Popen::terminate() { return send_signal(SIGTERM); }
+
+Result<std::nullopt_t> Popen::kill() { return send_signal(SIGKILL); }
+
+std::optional<ExitStatus> Popen::exit_status() const {
+  if (child_state.is_a<ChildState::Finished>()) {
+    auto finished = child_state.get<ChildState::Finished>();
+    return std::make_optional<ExitStatus>(std::move(finished.exit_status));
+  }
+  return std::nullopt;
+}
+
+std::optional<pid_type> Popen::pid() const {
+  if (child_state.is_a<ChildState::Running>()) {
+    return child_state.get<ChildState::Running>().pid;
+  }
+  return std::nullopt;
+}
+
+Result<ExitStatus> Popen::wait() {
+  while (child_state.is_a<ChildState::Running>()) {
+    auto res = waitpid_impl(true);
+    if (!res.ok()) return res.take_error();
+  }
+  return *exit_status();
+}
+
 Result<std::optional<ExitStatus>> Popen::wait_timeout(std::chrono::milliseconds us) {
   if (child_state.is_a<ChildState::Finished>()) {
     return std::make_optional(child_state.get<ChildState::Finished>().exit_status);
@@ -368,7 +656,7 @@ Result<std::optional<ExitStatus>> Popen::wait_timeout(std::chrono::milliseconds 
   auto delay = 1ms;
 
   while (true) {
-    auto success = this->waitpid(false);
+    auto success = this->waitpid_impl(false);
     if (!success.ok()) return success.take_error();
 
     if (child_state.is_a<ChildState::Finished>()) {
@@ -413,17 +701,20 @@ Result<CaptureData> Popen::communicate_bytes(std::optional<std::vector<uint8_t>>
   threads.reserve(3);
 
   // Stdin writer thread — writes all input and then closes the pipe so that
-  // the child receives EOF.  SIGPIPE is blocked for this thread so that a
-  // broken pipe (child exited early) causes write() to fail with EPIPE
-  // rather than killing the process.
+  // the child receives EOF.
+#ifndef _WIN32
+  // On Unix: block SIGPIPE for this thread so that a broken pipe (child
+  // exited early) causes write() to fail with EPIPE rather than killing
+  // the process.
+#endif
   if (local_in.has_value()) {
     threads.emplace_back([&local_in, &input]() {
-      // Block SIGPIPE for this thread.
+#ifndef _WIN32
       sigset_t set;
       sigemptyset(&set);
       sigaddset(&set, SIGPIPE);
       pthread_sigmask(SIG_BLOCK, &set, nullptr);
-
+#endif
       if (input.has_value()) {
         const auto& data = *input;
         local_in->write(

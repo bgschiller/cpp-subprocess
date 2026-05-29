@@ -14,9 +14,13 @@
 #include "ExitStatus.hpp"
 #include "PopenConfig.hpp"
 #include "PopenError.hpp"
-#include "PrepExec.hpp"
 #include "Result.hpp"
+#include "detail/platform.hpp"
 #include "vendor/fdstream.hpp"
+
+#ifndef _WIN32
+#include "PrepExec.hpp"
+#endif
 
 namespace subprocess {
 
@@ -139,7 +143,7 @@ namespace subprocess {
      * one of `create`, `wait`, `wait_timeout`, or `poll`. For a newly created
      * `Popen`, `pid()` always returns a value (not nullopt)
      */
-    std::optional<pid_t> pid() const;
+    std::optional<pid_type> pid() const;
 
     /**
      * Wait for the process to finish, timing out after the specified duration.
@@ -172,6 +176,9 @@ namespace subprocess {
 
     std::optional<PopenError> os_start(
         const std::vector<std::string>& argv, const PopenConfig& cfg);
+    Result<const std::nullopt_t> waitpid_impl(bool block);
+
+#ifndef _WIN32
     // Create the pipes requested by stdin, stdout, and stderr from
     // the PopenConfig used to construct us, and return the file-
     // descriptors to be given to the child process.
@@ -182,12 +189,11 @@ namespace subprocess {
     Result<std::tuple<int, int, int>> setup_streams(
         const Redirection& stin, const Redirection& stout, const Redirection& sterr);
 
-    Result<const std::nullopt_t> waitpid(bool block);
-
     int32_t do_exec(
         PrepExec& just_exec, std::tuple<int, int, int> child_ends,
         std::optional<std::filesystem::path> cwd, std::optional<uint32_t> setuid,
         std::optional<uint32_t> setgid, bool setpgid);
+#endif  // !_WIN32
   };
 }  // namespace subprocess
 #endif

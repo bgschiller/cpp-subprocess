@@ -1,6 +1,10 @@
 #include "subprocess/Pipeline.hpp"
 
-#include <unistd.h>
+#ifdef _WIN32
+#define SUBPROCESS_DEVNULL "NUL"
+#else
+#define SUBPROCESS_DEVNULL "/dev/null"
+#endif
 
 #include <stdexcept>
 
@@ -25,7 +29,7 @@ namespace subprocess {
   }
 
   Pipeline& Pipeline::stdin(NullFile) {
-    stdin_override_ = Redirection::Read("/dev/null").or_throw();
+    stdin_override_ = Redirection::Read(SUBPROCESS_DEVNULL).or_throw();
     return *this;
   }
 
@@ -35,7 +39,7 @@ namespace subprocess {
   }
 
   Pipeline& Pipeline::stdout(NullFile) {
-    stdout_override_ = Redirection::Write("/dev/null").or_throw();
+    stdout_override_ = Redirection::Write(SUBPROCESS_DEVNULL).or_throw();
     return *this;
   }
 
@@ -45,7 +49,7 @@ namespace subprocess {
   }
 
   Pipeline& Pipeline::stderr(NullFile) {
-    stderr_override_ = Redirection::Write("/dev/null").or_throw();
+    stderr_override_ = Redirection::Write(SUBPROCESS_DEVNULL).or_throw();
     return *this;
   }
 

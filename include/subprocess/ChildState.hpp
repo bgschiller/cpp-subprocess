@@ -9,11 +9,18 @@
 
 #include "ExitStatus.hpp"
 #include "Result.hpp"
+#include "detail/platform.hpp"
 namespace subprocess {
   struct ChildState {
     struct Preparing { };
     struct Running {
-      pid_t pid;
+      /// Platform process identifier (pid_t on Unix, DWORD on Windows).
+      pid_type pid;
+#ifdef _WIN32
+      /// Windows-only: open handle to the child process.
+      /// Must be closed (via CloseHandle) when the process is reaped.
+      void* process_handle;
+#endif
     };
     struct Finished {
       ExitStatus exit_status;

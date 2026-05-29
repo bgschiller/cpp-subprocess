@@ -1,10 +1,12 @@
 #include <catch2/catch.hpp>
-#include <fcntl.h>
+#ifndef _WIN32
+#  include <fcntl.h>
+#  include <signal.h>
+#  include <sys/wait.h>
+#  include <unistd.h>
+#endif
 #include <optional>
-#include <signal.h>
 #include <string>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <vector>
 
 #include "subprocess/Popen.hpp"
@@ -116,6 +118,7 @@ TEST_CASE("Popen destructor") {
   SECTION("reaps child that was never explicitly waited on") {
     // The child runs to completion and the destructor must call wait(),
     // preventing it from becoming a zombie.
+#ifndef _WIN32
     pid_t child_pid;
     {
       auto p = Popen::create({"true"}, PopenConfig{}).or_throw();
@@ -128,6 +131,12 @@ TEST_CASE("Popen destructor") {
     pid_t ret = ::waitpid(child_pid, &status, 0);
     REQUIRE(ret == -1);
     REQUIRE(errno == ECHILD);
+#else
+    // On Windows there is no waitpid; we just verify the destructor doesn't
+    // block or crash.
+    { auto p = Popen::create({"cmd.exe", "/c", "exit 0"}, PopenConfig{}).or_throw(); }
+    REQUIRE(true);
+#endif
   }
 
   SECTION("closes stdin pipe so a blocking child exits") {
@@ -148,6 +157,7 @@ TEST_CASE("Popen destructor") {
     // reap the child ourselves after the destructor returns.
     PopenConfig cfg;
     cfg.detached = true;
+#ifndef _WIN32
     pid_t child_pid;
     {
       auto p = Popen::create({"true"}, cfg).or_throw();
@@ -160,6 +170,13 @@ TEST_CASE("Popen destructor") {
     REQUIRE(ret == child_pid);
     REQUIRE(WIFEXITED(status));
     REQUIRE(WEXITSTATUS(status) == 0);
+#else
+    // On Windows, just verify the detached Popen creates and destructs cleanly.
+    auto p = Popen::create({"cmd.exe", "/c", "exit 0"}, cfg).or_throw();
+    subprocess::pid_type pid = p.pid().value();
+    (void)pid;
+    // The destructor should not wait on a detached process.
+#endif
   }
 }
 
