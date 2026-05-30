@@ -28,14 +28,11 @@ static constexpr const char* kSh = "/bin/sh";
 #endif
 
 #ifdef _WIN32
-static void diag(const char* msg) { std::cerr << "[diag] " << msg << std::endl; }
 #else
-static void diag(const char*) {}
 #endif
 
 TEST_CASE("echo time") {
   SECTION("to stdout") {
-    diag("echo-time: to-stdout");
     auto echoR = Popen::create({"echo", "yolo"}, PopenConfig{});
     REQUIRE(echoR.ok());
     auto echo = echoR.take_value();
@@ -46,12 +43,10 @@ TEST_CASE("echo time") {
   }
 
   SECTION("pipe output") {
-    diag("echo-time: pipe-output-start");
     PopenConfig config;
     config.stdout_ = Redirection::Pipe();
     auto echoR = Popen::create({"echo", "yolo"}, config);
     REQUIRE(echoR.ok());
-    diag("echo-time: pipe-output-created");
     auto echo = echoR.take_value();
     std::string buf;
     REQUIRE_FALSE(echo.std_out->eof());
@@ -66,7 +61,6 @@ TEST_CASE("echo time") {
   }
 
   SECTION("pipe input and output") {
-    diag("echo-time: pipe-io-start");
     PopenConfig config;
     config.stdin_ = Redirection::Pipe();
     config.stdout_ = Redirection::Pipe();
@@ -94,7 +88,6 @@ TEST_CASE("echo time") {
   }
 
   SECTION("input from file") {
-    diag("echo-time: input-from-file-start");
     FILE* fruits = fopen("fruits.tmp", "w");
     fprintf(fruits, "apple\nbanana\npineapple\nlemon\n");
     fclose(fruits);
@@ -144,7 +137,6 @@ TEST_CASE("echo time") {
 }
 
 TEST_CASE("Popen destructor") {
-  diag("dtor: start");
   SECTION("reaps child that was never explicitly waited on") {
     // The child runs to completion and the destructor must call wait(),
     // preventing it from becoming a zombie.
@@ -211,7 +203,6 @@ TEST_CASE("Popen destructor") {
 }
 
 TEST_CASE("signal methods") {
-  diag("signal: start");
   SECTION("kill() terminates a running process") {
 #ifndef _WIN32
     auto p = subprocess::Popen::create({"sleep", "60"}, subprocess::PopenConfig{}).or_throw();
@@ -317,7 +308,6 @@ TEST_CASE("signal methods") {
 }
 
 TEST_CASE("Popen::communicate") {
-  diag("communicate: start");
   SECTION("captures stdout with no stdin") {
     subprocess::PopenConfig cfg;
     cfg.stdout_ = subprocess::Redirection::Pipe();
@@ -412,7 +402,6 @@ TEST_CASE("Popen::communicate") {
 }
 
 TEST_CASE("exit status decoding") {
-  diag("exit-status: start");
   SECTION("exit code 0 is success") {
     auto p = Popen::create({"true"}, PopenConfig{}).or_throw();
     auto exit = p.wait().or_throw();
