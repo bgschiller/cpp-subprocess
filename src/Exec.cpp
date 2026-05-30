@@ -257,4 +257,9 @@ namespace subprocess {
     proc.detached = true;
     return std::move(*proc.std_in);
   }
+  void Exec::release_redirection_fds() {
+    config.stdin_.release_internal_fds();
+    config.stdout_.release_internal_fds();
+    config.stderr_.release_internal_fds();
+  }
 }  // namespace subprocess

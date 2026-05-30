@@ -75,6 +75,10 @@ namespace subprocess {
 
      public:
       FileDescriptor(int _fd);
+
+      /// Relinquish ownership of the fd without closing it.
+      /// Returns the fd and ensures the destructor will not close it.
+      int release();
       ~FileDescriptor();
       FileDescriptor(const FileDescriptor& other);
 
@@ -146,6 +150,10 @@ namespace subprocess {
     }
 
     std::string toString() const;
+
+    /// Release ownership of any contained FileDescriptor fd so its destructor
+    /// will not close it.  Used by Pipeline after manually closing pipe fds.
+    void release_internal_fds();
 
     Result<const std::nullopt_t> match(
         std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,

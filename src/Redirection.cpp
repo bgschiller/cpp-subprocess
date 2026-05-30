@@ -22,6 +22,10 @@ void Redirection::FileDescriptor::discard() {
     _owned = false;
   }
 }
+int Redirection::FileDescriptor::release() {
+  _owned = false;
+  return fd;
+}
 Redirection::FileDescriptor::FileDescriptor(int _fd)
     : fd{ _fd }
     , _owned{ true } { }
@@ -86,6 +90,12 @@ Redirection& Redirection::operator=(Redirection&& other) {
 }
 
 std::string Redirection::toString() const { return internal::variant_to_string(_state); }
+
+void Redirection::release_internal_fds() {
+  if (auto* fd = std::get_if<FileDescriptor>(&_state)) {
+    fd->release();
+  }
+}
 
 Result<const std::nullopt_t> Redirection::match(
     std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,

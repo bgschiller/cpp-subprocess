@@ -217,6 +217,12 @@ namespace subprocess {
     ///          process; on failure, a `PopenError` describing what went wrong.
     Result<Popen> popen();
 
+    /// Release ownership of any FileDescriptor fds in the internal redirection
+    /// config.  After this call, the config's FileDescriptors will no longer
+    /// close their fds on destruction — the caller is responsible for closing
+    /// them.  Used by Pipeline to manage pipe lifetimes.
+    void release_redirection_fds();
+
     /// Launch the process, wait for it to exit, and return its exit status.
     ///
     /// This is a convenience wrapper around `popen()` + `Popen::wait()`.  It is
