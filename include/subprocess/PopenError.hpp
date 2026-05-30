@@ -10,8 +10,8 @@ namespace subprocess {
     enum class ErrKind { IoError, LogicError };
     constexpr static ErrKind IoError = ErrKind::IoError;
     constexpr static ErrKind LogicError = ErrKind::LogicError;
-    const ErrKind kind;
-    const std::string message;
+    ErrKind kind;
+    std::string message;
 
     PopenError(ErrKind _kind, const std::string& _message);
     PopenError(PopenError&& other);

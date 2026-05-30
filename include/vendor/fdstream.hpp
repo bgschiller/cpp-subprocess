@@ -190,8 +190,14 @@ class fdinbuf : public std::streambuf {
     , _is_open{other._is_open}
     {
       if (this != &other) {
-        std::move(other.eback(), other.egptr(), buffer);
-        setg(other.eback(), other.gptr(), other.egptr());
+        // Copy the in-flight buffer contents, then rebase the get-area
+        // pointers to *this* buffer rather than leaving them pointing
+        // into `other.buffer` (which is a use-after-move bug).
+        auto num = static_cast<size_t>(other.egptr() - other.eback());
+        std::memmove(buffer, other.eback(), num);
+        auto gptr_off = static_cast<size_t>(other.gptr() - other.eback());
+        auto egptr_off = num;
+        setg(buffer, buffer + gptr_off, buffer + egptr_off);
         other._is_open = false;
       }
     }
@@ -202,10 +208,15 @@ class fdinbuf : public std::streambuf {
 
     fdinbuf& operator=(fdinbuf&& other) {
       if (this != &other) {
+        close();  // release our current fd before taking over the new one
         fd = other.fd;
         _is_open = other._is_open;
-        std::move(other.eback(), other.egptr(), buffer);
-        setg(other.eback(), other.gptr(), other.egptr());
+        // Copy buffer contents and rebase get-area pointers.
+        auto num = static_cast<size_t>(other.egptr() - other.eback());
+        std::memmove(buffer, other.eback(), num);
+        auto gptr_off = static_cast<size_t>(other.gptr() - other.eback());
+        auto egptr_off = num;
+        setg(buffer, buffer + gptr_off, buffer + egptr_off);
         other._is_open = false;
       }
       return *this;
@@ -288,7 +299,7 @@ class fdistream : public std::istream {
     }
 
     void close() {
-      dynamic_cast<fdoutbuf*>(rdbuf())->close();
+      dynamic_cast<fdinbuf*>(rdbuf())->close();
     }
 };
 

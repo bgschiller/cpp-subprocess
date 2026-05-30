@@ -7,11 +7,18 @@
 #include "subprocess/Pipeline.hpp"
 #include "subprocess/Redirection.hpp"
 
+#ifdef _WIN32
+static void diag(const char* msg) { std::cerr << "[diag] " << msg << std::endl; }
+#else
+static void diag(const char*) {}
+#endif
+
 // ---------------------------------------------------------------------------
 // Pipeline constructor and pipe()
 // ---------------------------------------------------------------------------
 
 TEST_CASE("Pipeline: two-stage join") {
+  diag("pipeline: two-stage-join start");
   // cat /dev/null | true  — both succeed
   auto status =
       subprocess::Pipeline(subprocess::Exec::cmd("cat").arg("/dev/null"), subprocess::Exec::cmd("true"))

@@ -15,7 +15,14 @@
 #include "subprocess/posix.hpp"
 #include "vendor/fdstream.hpp"
 
+#ifdef _WIN32
+static void diag(const char* msg) { std::cerr << "[diag] " << msg << std::endl; }
+#else
+static void diag(const char*) {}
+#endif
+
 TEST_CASE("Exec::popen") {
+  diag("exec-popen: start");
   SECTION("simple command succeeds") {
     subprocess::Result<subprocess::Popen> result =
         subprocess::Exec::cmd("echo").arg("hello").popen();
@@ -57,6 +64,7 @@ TEST_CASE("Exec::popen") {
     REQUIRE(proc.std_out.has_value());
     std::string line;
     std::getline(*proc.std_out, line);
+    if (!line.empty() && line.back() == '\r') line.pop_back();
     REQUIRE(line == "subprocess");
     REQUIRE(proc.wait()->success());
   }
@@ -71,6 +79,7 @@ TEST_CASE("Exec::popen") {
     subprocess::Popen proc = result.take_value();
     std::string line;
     std::getline(*proc.std_out, line);
+    if (!line.empty() && line.back() == '\r') line.pop_back();
     REQUIRE(line == "a b c");
     REQUIRE(proc.wait()->success());
   }
@@ -92,6 +101,7 @@ TEST_CASE("Exec::popen") {
 }
 
 TEST_CASE("Exec::join") {
+  diag("exec-join: start");
   SECTION("successful command returns success exit status") {
     subprocess::Result<subprocess::ExitStatus> result =
         subprocess::Exec::cmd("true").join();
@@ -123,12 +133,14 @@ TEST_CASE("Exec::join") {
 }
 
 TEST_CASE("Exec::stream_stdout") {
+  diag("exec-stream-stdout: start");
   SECTION("automatically sets stdout to pipe when not configured") {
     subprocess::Result<boost::fdistream> result =
         subprocess::Exec::cmd("echo").arg("hello").stream_stdout();
     REQUIRE(result.ok());
     std::string line;
     std::getline(*result, line);
+    if (!line.empty() && line.back() == '\r') line.pop_back();
     REQUIRE(line == "hello");
   }
 
@@ -141,6 +153,7 @@ TEST_CASE("Exec::stream_stdout") {
     REQUIRE(result.ok());
     std::string line;
     std::getline(*result, line);
+    if (!line.empty() && line.back() == '\r') line.pop_back();
     REQUIRE(line == "world");
   }
 
@@ -165,6 +178,7 @@ TEST_CASE("Exec::stream_stdout") {
 }
 
 TEST_CASE("Exec::stream_stdin") {
+  diag("exec-stream-stdin: start");
   SECTION("automatically sets stdin to pipe when not configured") {
     // cat with stdout discarded; writing to the returned stream must not fail.
     subprocess::Result<boost::fdostream> result =
@@ -206,6 +220,7 @@ TEST_CASE("Exec::stream_stdin") {
 }
 
 TEST_CASE("Exec::shell") {
+  diag("exec-shell: start");
   SECTION("runs a simple shell expression and captures output") {
     subprocess::Result<subprocess::CaptureData> result =
         subprocess::Exec::shell("echo hello world").capture();
@@ -259,6 +274,7 @@ TEST_CASE("Exec::shell") {
 }
 
 TEST_CASE("Exec::capture") {
+  diag("exec-capture: start");
   SECTION("captures stdout of a simple command") {
     subprocess::Result<subprocess::CaptureData> result =
         subprocess::Exec::cmd("echo").arg("hello").capture();
@@ -328,6 +344,7 @@ TEST_CASE("Exec::capture") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("Exec::shell platform dispatch") {
+  diag("exec-shell-platform: start");
   SECTION("shell() runs a command through the system shell") {
     // The exact shell (sh on Unix, cmd.exe on Windows) is an implementation
     // detail.  We only verify that a simple expression evaluates correctly.
