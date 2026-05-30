@@ -78,6 +78,15 @@ namespace subprocess {
       pipes.push_back({ read_fd, write_fd });
     }
 
+    // On Windows, CreateProcess with bInheritHandles duplicates ALL inheritable
+    // handles to the child — not just stdin/stdout/stderr.  Mark every pipe fd
+    // non-inheritable now; fd_to_inheritable_handle() in os_start will re-enable
+    // inheritance for the specific fd each stage actually needs.
+    for (auto& [r, w] : pipes) {
+      set_inheritable(r, false);
+      set_inheritable(w, false);
+    }
+
     std::vector<Popen> children;
     children.reserve(n);
 
@@ -146,6 +155,13 @@ namespace subprocess {
         return pop_result.take_error();
       }
       children.push_back(pop_result.take_value());
+
+      // Re-hide all pipe fds so the next child only inherits the handles
+      // that fd_to_inheritable_handle() explicitly re-enables for it.
+      for (auto& [r, w] : pipes) {
+        set_inheritable(r, false);
+        set_inheritable(w, false);
+      }
     }
 
     // Close all intermediate pipe fds in the parent now that all children
