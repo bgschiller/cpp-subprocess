@@ -28,6 +28,7 @@ TEST_CASE("Pipeline: two-stage join") {
 }
 
 TEST_CASE("Pipeline: operator| convenience") {
+  diag("pipeline: operator| convenience start");
   auto status =
       (subprocess::Exec::cmd("echo").arg("hello") | subprocess::Exec::cmd("grep").arg("hello"))
           .join()
@@ -36,6 +37,7 @@ TEST_CASE("Pipeline: operator| convenience") {
 }
 
 TEST_CASE("Pipeline: three-stage operator|") {
+  diag("pipeline: three-stage start");
   // echo "apple\nbanana" | grep apple | grep -v banana
   auto status =
       (subprocess::Exec::shell("printf 'apple\\nbanana\\n'") |
@@ -47,6 +49,7 @@ TEST_CASE("Pipeline: three-stage operator|") {
 }
 
 TEST_CASE("Pipeline: pipe() extends the chain") {
+  diag("pipeline: pipe-extends start");
   subprocess::Pipeline pl(
       subprocess::Exec::cmd("echo").arg("hello"), subprocess::Exec::cmd("cat"));
   pl.pipe(subprocess::Exec::cmd("grep").arg("hello"));
@@ -60,6 +63,7 @@ TEST_CASE("Pipeline: pipe() extends the chain") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("Pipeline: capture stdout of last stage") {
+  diag("pipeline: capture-stdout start");
   // echo "hello world" | cat  → stdout == "hello world\n"
   auto data =
       (subprocess::Exec::cmd("echo").arg("hello world") | subprocess::Exec::cmd("cat"))
@@ -70,6 +74,7 @@ TEST_CASE("Pipeline: capture stdout of last stage") {
 }
 
 TEST_CASE("Pipeline: capture replaces existing two-process test") {
+  diag("pipeline: capture-replace start");
   // This replicates the manual pipe test in simple_commands.cpp using Pipeline.
   FILE* veggies = fopen("veggies2.tmp", "w");
   fprintf(veggies, "brussels sprouts\nkale\ncarrots\nbroccoli\ncauliflower\neggplant\nspinach\n");
@@ -86,6 +91,7 @@ TEST_CASE("Pipeline: capture replaces existing two-process test") {
 }
 
 TEST_CASE("Pipeline: capture stderr from a stage") {
+  diag("pipeline: capture-stderr start");
   // first stage writes to stderr; second stage is cat (passes through nothing
   // on stdout since first stage writes nothing there).
   auto data =
@@ -100,6 +106,7 @@ TEST_CASE("Pipeline: capture stderr from a stage") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("Pipeline: popen returns handles for all stages") {
+  diag("pipeline: popen-handles start");
   auto procs =
       (subprocess::Exec::cmd("echo").arg("hi") | subprocess::Exec::cmd("cat"))
           .popen()
@@ -115,6 +122,7 @@ TEST_CASE("Pipeline: popen returns handles for all stages") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("Pipeline: stdin(NullFile) makes first stage read from /dev/null") {
+  diag("pipeline: stdin-nullfile start");
   // cat reads from /dev/null (empty input), so grep finds nothing → exit 1.
   auto status = (subprocess::Exec::cmd("cat") | subprocess::Exec::cmd("grep").arg("anything"))
                     .stdin_(subprocess::NullFile{})
@@ -124,6 +132,7 @@ TEST_CASE("Pipeline: stdin(NullFile) makes first stage read from /dev/null") {
 }
 
 TEST_CASE("Pipeline: stdout(NullFile) discards last stage output") {
+  diag("pipeline: stdout-nullfile start");
   auto status =
       (subprocess::Exec::cmd("echo").arg("hello") | subprocess::Exec::cmd("cat"))
           .stdout_(subprocess::NullFile{})

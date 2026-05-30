@@ -93,6 +93,7 @@ namespace subprocess {
       } else {
         // Read end of the previous inter-process pipe.
         stage.stdin_(Redirection::FileDescriptor(pipes[i - 1].first));
+        pipes[i - 1].first = -1;  // ownership transferred to FileDescriptor
       }
 
       // --- stdout ---
@@ -104,6 +105,7 @@ namespace subprocess {
       } else {
         // Write end of the next inter-process pipe.
         stage.stdout_(Redirection::FileDescriptor(pipes[i].second));
+        pipes[i].second = -1;  // ownership transferred to FileDescriptor
       }
 
       // --- stderr ---
@@ -133,21 +135,22 @@ namespace subprocess {
 
       auto pop_result = stage.popen();
       if (!pop_result.ok()) {
-        // Close remaining pipe fds before returning.
+        // Close remaining (unconsumed) pipe fds before returning.
         for (std::size_t j = i; j < n - 1; ++j) {
-          subprocess::close_fd(pipes[j].first);
-          subprocess::close_fd(pipes[j].second);
+          if (pipes[j].first >= 0) subprocess::close_fd(pipes[j].first);
+          if (pipes[j].second >= 0) subprocess::close_fd(pipes[j].second);
         }
         return pop_result.take_error();
       }
       children.push_back(pop_result.take_value());
     }
 
-    // Close all intermediate pipe fds in the parent now that all children
-    // have been spawned — the children hold the relevant ends open.
+    // Close any remaining intermediate pipe fds in the parent.  Fds that
+    // were transferred to FileDescriptors in Exec configs are already set
+    // to -1 (ownership moved); only close the ones we still hold directly.
     for (auto& [r, w] : pipes) {
-      subprocess::close_fd(r);
-      subprocess::close_fd(w);
+      if (r >= 0) subprocess::close_fd(r);
+      if (w >= 0) subprocess::close_fd(w);
     }
 
     return children;
