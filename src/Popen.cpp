@@ -33,7 +33,7 @@ Result<Popen> Popen::create(const std::vector<std::string>& argv, const PopenCon
   if (argv.size() == 0) {
     return PopenError{ PopenError::LogicError, "argv must not be empty" };
   }
-  Popen inst{ ChildState::Preparing(), cfg.detached };
+  Popen inst{ ChildState::Preparing(), cfg.detached, cfg.destructor_policy, cfg.kill_grace_period };
   auto res = inst.os_start(argv, cfg);
   if (res.has_value()) {
     return *res;
@@ -50,9 +50,25 @@ Popen::~Popen() {
   std_in.reset();
   std_out.reset();
   std_err.reset();
-  // Reap the child if it has not already been waited on.
+  // Apply the configured destructor policy if the child is still running.
   if (child_state.is_a<ChildState::Running>()) {
-    wait();  // errors are silently ignored inside a destructor
+    switch (destructor_policy_) {
+      case DestructorPolicy::Wait:
+        wait();  // errors are silently ignored inside a destructor
+        break;
+      case DestructorPolicy::Terminate:
+        send_signal(SIGTERM);  // errors silently swallowed
+        wait();
+        break;
+      case DestructorPolicy::TerminateAndKill:
+        send_signal(SIGTERM);
+        wait_timeout(kill_grace_period_);
+        if (child_state.is_a<ChildState::Running>()) {
+          send_signal(SIGKILL);
+          wait();
+        }
+        break;
+    }
   }
 }
 
@@ -62,7 +78,9 @@ Popen::Popen(Popen&& other) noexcept
     , std_in{ std::move(other.std_in) }
     , std_out{ std::move(other.std_out) }
     , std_err{ std::move(other.std_err) }
-    , alive_{ other.alive_ } {
+    , alive_{ other.alive_ }
+    , destructor_policy_{ other.destructor_policy_ }
+    , kill_grace_period_{ other.kill_grace_period_ } {
   // Mark the donor as dead so its destructor is a no-op.  We deliberately
   // do not touch `other.detached` — it retains its caller-visible meaning.
   other.alive_ = false;
@@ -76,6 +94,8 @@ Popen& Popen::operator=(Popen&& other) noexcept {
     std_out = std::move(other.std_out);
     std_err = std::move(other.std_err);
     alive_ = other.alive_;
+    destructor_policy_ = other.destructor_policy_;
+    kill_grace_period_ = other.kill_grace_period_;
     other.alive_ = false;
   }
   return *this;

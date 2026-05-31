@@ -200,6 +200,87 @@ TEST_CASE("Popen destructor") {
     // The destructor should not wait on a detached process.
 #endif
   }
+
+  SECTION("detached bypasses Terminate policy too") {
+    // Even with Terminate policy, a detached Popen destructor is a no-op.
+    PopenConfig cfg;
+    cfg.detached = true;
+    cfg.destructor_policy = DestructorPolicy::Terminate;
+#ifndef _WIN32
+    pid_t child_pid;
+    {
+      auto p = Popen::create({"true"}, cfg).or_throw();
+      child_pid = p.pid().value();
+      // Destructor must NOT send SIGTERM nor wait.
+    }
+    // Child should have exited normally (no signal).
+    int status = 0;
+    pid_t ret = ::waitpid(child_pid, &status, 0);
+    REQUIRE(ret == child_pid);
+    REQUIRE(WIFEXITED(status));
+    REQUIRE(WEXITSTATUS(status) == 0);
+#else
+    auto p = Popen::create({"cmd.exe", "/c", "exit 0"}, cfg).or_throw();
+    (void)p.pid().value();
+#endif
+  }
+
+#ifndef _WIN32
+  SECTION("Terminate policy sends SIGTERM and reaps") {
+    // A long-running process is sent SIGTERM by the destructor.
+    PopenConfig cfg;
+    cfg.destructor_policy = DestructorPolicy::Terminate;
+    pid_t child_pid;
+    {
+      auto p = Popen::create({"sleep", "60"}, cfg).or_throw();
+      child_pid = p.pid().value();
+      // Destructor sends SIGTERM and waits — must not hang.
+    }
+    // Zombie check: waitpid must return ECHILD (already reaped).
+    int status = 0;
+    pid_t ret = ::waitpid(child_pid, &status, 0);
+    REQUIRE(ret == -1);
+    REQUIRE(errno == ECHILD);
+  }
+
+  SECTION("TerminateAndKill sends SIGKILL after grace period") {
+    // Child ignores SIGTERM; destructor escalates to SIGKILL.
+    PopenConfig cfg;
+    cfg.destructor_policy = DestructorPolicy::TerminateAndKill;
+    cfg.kill_grace_period = std::chrono::milliseconds(100);
+    pid_t child_pid;
+    {
+      auto p =
+          Popen::create({kSh, "-c", "trap '' TERM; sleep 60"}, cfg).or_throw();
+      child_pid = p.pid().value();
+      // Destructor sends SIGTERM (ignored), waits 100ms, then SIGKILL.
+    }
+    // Zombie check: waitpid must return ECHILD.
+    int status = 0;
+    pid_t ret = ::waitpid(child_pid, &status, 0);
+    REQUIRE(ret == -1);
+    REQUIRE(errno == ECHILD);
+  }
+
+  SECTION("TerminateAndKill with process that exits on SIGTERM") {
+    // If SIGTERM succeeds, SIGKILL is never sent.
+    PopenConfig cfg;
+    cfg.destructor_policy = DestructorPolicy::TerminateAndKill;
+    cfg.kill_grace_period = std::chrono::milliseconds(2000);
+    pid_t child_pid;
+    {
+      // sleep exits on SIGTERM, so SIGKILL won't be needed.
+      auto p = Popen::create({"sleep", "1"}, cfg).or_throw();
+      child_pid = p.pid().value();
+      // Give the child a moment to start, then let destructor run.
+    }
+    // Zombie check.
+    int status = 0;
+    pid_t ret = ::waitpid(child_pid, &status, 0);
+    REQUIRE(ret == -1);
+    REQUIRE(errno == ECHILD);
+  }
+#endif
 }
 
 TEST_CASE("signal methods") {

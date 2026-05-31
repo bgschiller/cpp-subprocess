@@ -1,5 +1,6 @@
 #ifndef SUBPROCESS_POPEN_CONFIG_H_
 #define SUBPROCESS_POPEN_CONFIG_H_
+#include <chrono>
 #include <optional>
 #include <string>
 #include <utility>
@@ -9,6 +10,16 @@
 #include "detail/platform.hpp"
 
 namespace subprocess {
+
+  /// What the destructor does when the child is still running.
+  enum class DestructorPolicy {
+    /// Wait indefinitely for the child to exit (current behaviour).
+    Wait,
+    /// Send SIGTERM (or TerminateProcess on Windows), then wait indefinitely.
+    Terminate,
+    /// Send SIGTERM, wait up to the configured grace period, then SIGKILL.
+    TerminateAndKill,
+  };
 
   using EnvVar = std::pair<std::string, std::string>;
 
@@ -20,7 +31,24 @@ namespace subprocess {
     /// How to configure the executed program's standard error.
     Redirection stderr_{ Redirection::None() };
     /// Whether the `Popen` instance is initially detached.
+    ///
+    /// When `true`, the destructor does nothing — no signals are sent and
+    /// `wait()` is not called.  The caller is responsible for reaping the
+    /// child.
     bool detached{ false };
+
+    /// What the destructor does when the child is still running.
+    ///
+    /// - `Wait`: Wait indefinitely (preserves historical behaviour).
+    /// - `Terminate`: Send SIGTERM then wait.
+    /// - `TerminateAndKill`: Send SIGTERM, wait up to `kill_grace_period`,
+    ///   then send SIGKILL if the child has not exited.
+    ///
+    /// Ignored when `detached` is `true`.
+    DestructorPolicy destructor_policy{ DestructorPolicy::Wait };
+
+    /// Grace period between SIGTERM and SIGKILL when using `TerminateAndKill`.
+    std::chrono::milliseconds kill_grace_period{ std::chrono::milliseconds(3000) };
 
     /// Executable to run.
     ///

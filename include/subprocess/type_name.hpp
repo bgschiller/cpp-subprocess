@@ -34,8 +34,8 @@ namespace subprocess::internal {
     // MSVC's __FUNCSIG__ includes elaborated-type specifiers such as
     // "struct ", "class ", or "enum " before the qualified name.  Strip them
     // so that the returned name is consistent across compilers.
-    for (auto kw : {std::string_view{"struct "}, std::string_view{"class "},
-                    std::string_view{"enum "}}) {
+    for (auto kw : { std::string_view{ "struct " }, std::string_view{ "class " },
+                     std::string_view{ "enum " } }) {
       while (result.size() >= kw.size() && result.substr(0, kw.size()) == kw) {
         result.remove_prefix(kw.size());
       }

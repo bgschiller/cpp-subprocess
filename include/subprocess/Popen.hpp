@@ -27,6 +27,23 @@ namespace subprocess {
   class Popen {
    public:
     Popen() = delete;
+
+    /**
+     * Destroy the `Popen` handle.
+     *
+     * Closes any open pipe ends.  If the process is still running and
+     * `detached` is `false`, the destructor applies the
+     * `destructor_policy` configured at construction time:
+     *
+     * - `Wait`:             waits indefinitely for the child to exit.
+     * - `Terminate`:        sends SIGTERM then waits.
+     * - `TerminateAndKill`: sends SIGTERM, waits up to
+     *                        `kill_grace_period`, then sends SIGKILL if
+     *                        the child has not exited.
+     *
+     * Errors from signal delivery and wait are silently swallowed
+     * (destructor context cannot throw).
+     */
     ~Popen();
     Popen(Popen&& other) noexcept;
     Popen& operator=(Popen&& other) noexcept;
@@ -170,9 +187,14 @@ namespace subprocess {
     // keeping the meaning of `detached` strictly caller-visible.
     bool alive_{ true };
 
-    Popen(ChildState cs, bool det)
+    DestructorPolicy destructor_policy_{ DestructorPolicy::Wait };
+    std::chrono::milliseconds kill_grace_period_{ 0 };
+
+    Popen(ChildState cs, bool det, DestructorPolicy dp, std::chrono::milliseconds kgp)
         : child_state{ std::move(cs) }
-        , detached{ det } { }
+        , detached{ det }
+        , destructor_policy_{ dp }
+        , kill_grace_period_{ kgp } { }
 
     std::optional<PopenError> os_start(
         const std::vector<std::string>& argv, const PopenConfig& cfg);

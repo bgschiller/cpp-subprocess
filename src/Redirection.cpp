@@ -62,9 +62,9 @@ Result<Redirection> Redirection::Open(
   int fd = ::open(path.c_str(), flags, mode);
 #endif
   if (fd < 0) {
-    return PopenError{ PopenError::ErrKind::IoError,
-                       std::string("open(): ") + std::to_string(errno) + std::string(" ") +
-                           subprocess::error_string(errno) };
+    return PopenError{ PopenError::ErrKind::IoError, std::string("open(): ") +
+                                                         std::to_string(errno) + std::string(" ") +
+                                                         subprocess::error_string(errno) };
   }
   return Redirection{ Redirection::FileDescriptor(fd) };
 }
