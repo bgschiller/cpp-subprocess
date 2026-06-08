@@ -57,13 +57,10 @@ int32_t PrepExec::exec() {
       //   to be as long as (longest PATH component + 1 for slash + exe name + 1 for null
       //   terminator) (see ctor for prealloc_exe.reserve())
       size_t ix = 0;
-      while (start < end) {  // 1a. the PATH segment
-        prealloc_exe[ix++] = searchpath->at(start++);
-      }  // exit condition: start == end, the position of the next ":" or std::string::npos
-      if (start != std::string::npos) {
-        start++;
-        end = searchpath->find(":", start);
-      }
+      size_t seg_end = (end == std::string::npos) ? searchpath->size() : end;
+      while (start < seg_end) {  // 1a. the PATH segment
+        prealloc_exe[ix++] = (*searchpath)[start++];
+      }  // exit condition: start == seg_end, the position after the current segment
       prealloc_exe[ix++] = '/';  // 1b. a seperating '/'
       for (auto ch : cmd) {      // 1c. the executable name
         prealloc_exe[ix++] = ch;
@@ -73,7 +70,16 @@ int32_t PrepExec::exec() {
       // 2. try to exec.
       errCode = libc_exec();
       // if exec succeeds it doesn't return. When we reach
-      // this point the executable was not found at that path
+      // this point the executable was not found at that path.
+
+      // 3. advance past the ':' delimiter to the next segment,
+      //    or signal termination if this was the last segment.
+      if (end == std::string::npos) {
+        start = std::string::npos;  // last segment processed
+      } else {
+        start = end + 1;
+        end = searchpath->find(":", start);
+      }
     }
     // we haven't found the command anywhere on the path, just return
     // the last error

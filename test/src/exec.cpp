@@ -38,12 +38,12 @@ TEST_CASE("Exec::popen") {
     REQUIRE(proc.wait()->success());
   }
 
-  // Note: bare nonexistent command names (e.g. "__nonexistent__") hit a known
-  // bug in PrepExec::exec() where the PATH iteration throws std::out_of_range
-  // on the last segment, causing the child to abort().  The parent then sees
-  // EOF on the exec-error pipe and incorrectly treats the launch as a success.
-  // Use an absolute path instead – that skips PATH iteration and ENOENT is
-  // reported correctly.  See tickets/15-prep-exec-path-loop-oob.md.
+  SECTION("bare nonexistent command returns error") {
+    subprocess::Result<subprocess::Popen> result =
+        subprocess::Exec::cmd("__definitely_does_not_exist__").popen();
+    REQUIRE_FALSE(result.ok());
+  }
+
   SECTION("absolute path to nonexistent command returns error") {
     subprocess::Result<subprocess::Popen> result =
         subprocess::Exec::cmd("/definitely/does/not/exist/cmd").popen();
