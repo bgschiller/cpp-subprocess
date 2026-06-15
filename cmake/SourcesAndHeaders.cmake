@@ -35,5 +35,6 @@ set(headers
     include/subprocess/Redirection.hpp
     include/subprocess/Result.hpp
     include/subprocess/Pipeline.hpp
+    include/subprocess/operators.hpp
     ${detail_headers}
 )

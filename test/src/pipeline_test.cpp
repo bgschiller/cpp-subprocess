@@ -4,7 +4,7 @@
 #include <catch2/catch.hpp>
 
 #include "subprocess/Exec.hpp"
-#include "subprocess/Pipeline.hpp"
+#include "subprocess/operators.hpp"
 #include "subprocess/Redirection.hpp"
 
 #ifdef _WIN32

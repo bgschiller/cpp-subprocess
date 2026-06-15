@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "subprocess/operators.hpp"
 #include "subprocess/Popen.hpp"
 #include "subprocess/Redirection.hpp"
 #include "subprocess/detail/posix.hpp"
@@ -110,30 +111,19 @@ TEST_CASE("echo time") {
     REQUIRE(grep.std_out->slurp() == "apple\npineapple\n");
   }
 
-#ifndef _WIN32
   SECTION("Two process pipeline") {
     FILE* veggies = fopen("veggies.tmp", "w");
     fprintf(veggies, "brussels sprouts\nkale\ncarrots\nbroccoli\ncauliflower\neggplant\nspinach\n");
     fclose(veggies);
 
-    auto catToGrep = subprocess::pipe().or_throw();
-    PopenConfig catCfg;
-    catCfg.stdout_ = Redirection::FileDescriptor(std::get<1>(catToGrep));
-    PopenConfig grepCfg;
-    grepCfg.stdin_ = Redirection::FileDescriptor(std::get<0>(catToGrep));
-    grepCfg.stdout_ = Redirection::Pipe();
+    auto data = (Exec::cmd("cat").arg("veggies.tmp") |
+                 Exec::cmd("grep").arg("sp"))
+                    .capture()
+                    .or_throw();
 
-    auto cat = Popen::create({"cat", "veggies.tmp"}, catCfg).or_throw();
-    auto grep = Popen::create({"grep", "sp"}, grepCfg).or_throw();
-    ::close(std::get<0>(catToGrep));
-    ::close(std::get<1>(catToGrep));
-    auto cExit = cat.wait().or_throw();
-    auto gExit = grep.wait().or_throw();
-    REQUIRE(gExit.success());
-    REQUIRE(cExit.success());
-    REQUIRE(grep.std_out->slurp() == "brussels sprouts\nspinach\n");
+    REQUIRE(data.out == "brussels sprouts\nspinach\n");
+    REQUIRE(data.success());
   }
-#endif
 }
 
 TEST_CASE("Popen destructor") {

@@ -78,11 +78,6 @@ namespace subprocess {
     std::optional<Redirection> stderr_override_;
   };
 
-  /// Create a two-stage pipeline from two `Exec` configurations.
-  Pipeline operator|(Exec lhs, Exec rhs);
-  /// Extend a pipeline with another `Exec` stage.
-  Pipeline operator|(Pipeline lhs, Exec rhs);
-
 }  // namespace subprocess
 
 #endif  // SUBPROCESS_PIPELINE_H_
