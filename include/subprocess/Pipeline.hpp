@@ -36,19 +36,19 @@ namespace subprocess {
     Pipeline& pipe(Exec next);
 
     /// Configure stdin of the first process in the pipeline.
-    Pipeline& stdin_(Redirection r);
+    Pipeline& set_stdin(Redirection r);
     /// @overload
-    Pipeline& stdin_(NullFile);
+    Pipeline& set_stdin(NullFile);
 
     /// Configure stdout of the last process in the pipeline.
-    Pipeline& stdout_(Redirection r);
+    Pipeline& set_stdout(Redirection r);
     /// @overload
-    Pipeline& stdout_(NullFile);
+    Pipeline& set_stdout(NullFile);
 
     /// Configure stderr for all processes in the pipeline.
-    Pipeline& stderr_(Redirection r);
+    Pipeline& set_stderr(Redirection r);
     /// @overload
-    Pipeline& stderr_(NullFile);
+    Pipeline& set_stderr(NullFile);
 
     /// Launch all processes in the pipeline and return their `Popen` handles.
     ///

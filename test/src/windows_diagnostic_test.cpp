@@ -102,7 +102,7 @@ TEST_CASE("Windows diagnostic: communicate large input") {
 TEST_CASE("Windows diagnostic: NullFile stdout") {
   probe("nullfile: start");
   auto result =
-      subprocess::Exec::cmd("cat").stdout_(subprocess::NullFile{}).stream_stdin();
+      subprocess::Exec::cmd("cat").set_stdout(subprocess::NullFile{}).stream_stdin();
   probe(("nullfile: stream_stdin returned ok=" + std::to_string(result.ok())).c_str());
   REQUIRE(result.ok());
   *result << "hello\n";

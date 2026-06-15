@@ -1,7 +1,6 @@
 #ifndef SUBPROCESS_POPEN_H_
 #define SUBPROCESS_POPEN_H_
 #include <signal.h>
-#include <stdio.h>
 
 #include <chrono>
 #include <optional>

@@ -54,7 +54,7 @@ TEST_CASE("Exec::popen") {
     subprocess::Result<subprocess::Popen> result =
         subprocess::Exec::cmd("echo")
             .arg("subprocess")
-            .stdout_(subprocess::Redirection::Pipe())
+            .set_stdout(subprocess::Redirection::Pipe())
             .popen();
     REQUIRE(result.ok());
     subprocess::Popen proc = result.take_value();
@@ -70,7 +70,7 @@ TEST_CASE("Exec::popen") {
     subprocess::Result<subprocess::Popen> result =
         subprocess::Exec::cmd("echo")
             .add_args({"a", "b", "c"})
-            .stdout_(subprocess::Redirection::Pipe())
+            .set_stdout(subprocess::Redirection::Pipe())
             .popen();
     REQUIRE(result.ok());
     subprocess::Popen proc = result.take_value();
@@ -143,7 +143,7 @@ TEST_CASE("Exec::stream_stdout") {
     subprocess::Result<boost::fdistream> result =
         subprocess::Exec::cmd("echo")
             .arg("world")
-            .stdout_(subprocess::Redirection::Pipe())
+            .set_stdout(subprocess::Redirection::Pipe())
             .stream_stdout();
     REQUIRE(result.ok());
     std::string line;
@@ -176,7 +176,7 @@ TEST_CASE("Exec::stream_stdin") {
   SECTION("automatically sets stdin to pipe when not configured") {
     // cat with stdout discarded; writing to the returned stream must not fail.
     subprocess::Result<boost::fdostream> result =
-        subprocess::Exec::cmd("cat").stdout_(subprocess::NullFile{}).stream_stdin();
+        subprocess::Exec::cmd("cat").set_stdout(subprocess::NullFile{}).stream_stdin();
     REQUIRE(result.ok());
     *result << "hello subprocess\n";
     result->close();
@@ -185,8 +185,8 @@ TEST_CASE("Exec::stream_stdin") {
   SECTION("works when stdin already explicitly set to Pipe") {
     subprocess::Result<boost::fdostream> result =
         subprocess::Exec::cmd("cat")
-            .stdin_(subprocess::Redirection::Pipe())
-            .stdout_(subprocess::NullFile{})
+            .set_stdin(subprocess::Redirection::Pipe())
+            .set_stdout(subprocess::NullFile{})
             .stream_stdin();
     REQUIRE(result.ok());
     *result << "data\n";
@@ -290,7 +290,7 @@ TEST_CASE("Exec::capture") {
 
   SECTION("feeds stdin data and captures stdout") {
     subprocess::Result<subprocess::CaptureData> result =
-        subprocess::Exec::cmd("cat").stdin_(std::string("hello subprocess\n")).capture();
+        subprocess::Exec::cmd("cat").set_stdin(std::string("hello subprocess\n")).capture();
     REQUIRE(result.ok());
     REQUIRE(result->success());
     REQUIRE(result->out == "hello subprocess\n");
@@ -309,8 +309,8 @@ TEST_CASE("Exec::capture") {
     subprocess::Result<subprocess::CaptureData> result =
         subprocess::Exec::cmd("echo")
             .arg("piped")
-            .stdout_(subprocess::Redirection::Pipe())
-            .stderr_(subprocess::Redirection::Pipe())
+            .set_stdout(subprocess::Redirection::Pipe())
+            .set_stderr(subprocess::Redirection::Pipe())
             .capture();
     REQUIRE(result.ok());
     REQUIRE(result->out == "piped\n");
@@ -325,7 +325,7 @@ TEST_CASE("Exec::capture") {
   SECTION("capture with binary stdin data") {
     std::vector<uint8_t> data{ 'a', 'b', 'c', '\n' };
     subprocess::Result<subprocess::CaptureData> result =
-        subprocess::Exec::cmd("cat").stdin_(data).capture();
+        subprocess::Exec::cmd("cat").set_stdin(data).capture();
     REQUIRE(result.ok());
     REQUIRE(result->out == "abc\n");
   }

@@ -198,7 +198,7 @@ if (status.is_a<subprocess::ExitStatus::Signaled>()) {
 
 ### `Exec` builder *(in progress)*
 
-`Exec::cmd("program").arg("--flag").cwd("/tmp").stdout(Redirection::Pipe())`
+`Exec::cmd("program").arg("--flag").cwd("/tmp").set_stdout(Redirection::Pipe())`
 
 | Method | Description |
 |---|---|
@@ -206,7 +206,7 @@ if (status.is_a<subprocess::ExitStatus::Signaled>()) {
 | `arg(s)` / `add_args(v)` | Append argument(s) |
 | `env(k, v)` / `env_extend(v)` / `env_clear()` / `env_remove(k)` | Manage environment |
 | `cwd(path)` | Set working directory |
-| `stdin/stdout/stderr(r)` | Configure I/O redirection |
+| `set_stdin/set_stdout/set_stderr(r)` | Configure I/O redirection |
 | `detached()` | Mark the process as detached |
 
 `Exec::popen()`, `join()`, `capture()`, `stream_stdout()`, `stream_stdin()`, and

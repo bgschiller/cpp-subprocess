@@ -114,7 +114,7 @@ TEST_CASE("Pipeline: popen returns handles for all stages") {
 TEST_CASE("Pipeline: stdin(NullFile) makes first stage read from /dev/null") {
   // cat reads from /dev/null (empty input), so grep finds nothing → exit 1.
   auto status = (subprocess::Exec::cmd("cat") | subprocess::Exec::cmd("grep").arg("anything"))
-                    .stdin_(subprocess::NullFile{})
+                    .set_stdin(subprocess::NullFile{})
                     .join()
                     .or_throw();
   REQUIRE_FALSE(status.success());
@@ -123,7 +123,7 @@ TEST_CASE("Pipeline: stdin(NullFile) makes first stage read from /dev/null") {
 TEST_CASE("Pipeline: stdout(NullFile) discards last stage output") {
   auto status =
       (subprocess::Exec::cmd("echo").arg("hello") | subprocess::Exec::cmd("cat"))
-          .stdout_(subprocess::NullFile{})
+          .set_stdout(subprocess::NullFile{})
           .join()
           .or_throw();
   REQUIRE(status.success());

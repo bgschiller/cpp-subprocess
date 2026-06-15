@@ -13,15 +13,15 @@
 
 namespace subprocess {
 
-  /// Marker value for [`stdin`], [`stdout`], and [`stderr`] methods
+  /// Marker value for [`set_stdin`], [`set_stdout`], and [`set_stderr`] methods
   /// of [`Exec`] and [`Pipeline`].
   ///
   /// Use of this value means that the corresponding stream should
   /// be redirected to the devnull device.
   ///
-  /// [`stdin`]: struct.Exec.html#method.stdin
-  /// [`stdout`]: struct.Exec.html#method.stdout
-  /// [`stderr`]: struct.Exec.html#method.stderr
+  /// [`set_stdin`]: struct.Exec.html#method.set_stdin
+  /// [`set_stdout`]: struct.Exec.html#method.set_stdout
+  /// [`set_stderr`]: struct.Exec.html#method.set_stderr
   /// [`Exec`]: struct.Exec.html
   /// [`Pipeline`]: struct.Pipeline.html
   struct NullFile { };
@@ -155,18 +155,18 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stdin_(Redirection capture) &;
+    Exec& set_stdin(Redirection capture) &;
     /// @overload
-    Exec&& stdin_(Redirection capture) &&;
-    Exec& stdin_(const std::vector<uint8_t>& data) &;
+    Exec&& set_stdin(Redirection capture) &&;
+    Exec& set_stdin(const std::vector<uint8_t>& data) &;
     /// @overload
-    Exec&& stdin_(const std::vector<uint8_t>& data) &&;
-    Exec& stdin_(const std::string& data) &;
+    Exec&& set_stdin(const std::vector<uint8_t>& data) &&;
+    Exec& set_stdin(const std::string& data) &;
     /// @overload
-    Exec&& stdin_(const std::string& data) &&;
-    Exec& stdin_(NullFile) &;
+    Exec&& set_stdin(const std::string& data) &&;
+    Exec& set_stdin(NullFile) &;
     /// @overload
-    Exec&& stdin_(NullFile) &&;
+    Exec&& set_stdin(NullFile) &&;
 
     /// Specifies how to set up the standard output of the child process.
     ///
@@ -178,12 +178,12 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stdout_(Redirection capture) &;
+    Exec& set_stdout(Redirection capture) &;
     /// @overload
-    Exec&& stdout_(Redirection capture) &&;
-    Exec& stdout_(NullFile) &;
+    Exec&& set_stdout(Redirection capture) &&;
+    Exec& set_stdout(NullFile) &;
     /// @overload
-    Exec&& stdout_(NullFile) &&;
+    Exec&& set_stdout(NullFile) &&;
 
     /// Specifies how to set up the standard error of the child process.
     ///
@@ -195,12 +195,12 @@ namespace subprocess {
     ///
     /// [`Redirection`]: enum.Redirection.html
     /// [`NullFile`]: struct.NullFile.html
-    Exec& stderr_(Redirection capture) &;
+    Exec& set_stderr(Redirection capture) &;
     /// @overload
-    Exec&& stderr_(Redirection capture) &&;
-    Exec& stderr_(NullFile) &;
+    Exec&& set_stderr(Redirection capture) &&;
+    Exec& set_stderr(NullFile) &;
     /// @overload
-    Exec&& stderr_(NullFile) &&;
+    Exec&& set_stderr(NullFile) &&;
 
     /// Launch the configured process and return a `Popen` handle.
     ///
@@ -208,8 +208,8 @@ namespace subprocess {
     /// `command` is the value supplied to `Exec::cmd()` and `args` are any
     /// arguments appended via `arg()` / `add_args()`.
     ///
-    /// Any stdin data previously supplied via `Exec::stdin(const std::string&)`
-    /// or `Exec::stdin(const std::vector<uint8_t>&)` is **not** written by this
+    /// Any stdin data previously supplied via `Exec::set_stdin(const std::string&)`
+    /// or `Exec::set_stdin(const std::vector<uint8_t>&)` is **not** written by this
     /// method; use `capture()` for that.  This method simply spawns the process
     /// with the configured redirections and returns control to the caller.
     ///
@@ -274,8 +274,8 @@ namespace subprocess {
     /// set to `Redirection::Pipe()` if they are still `Redirection::None`, so
     /// the child's output is always captured.
     ///
-    /// If stdin data was supplied via `Exec::stdin(const std::string&)` or
-    /// `Exec::stdin(const std::vector<uint8_t>&)`, it is written to the child
+    /// If stdin data was supplied via `Exec::set_stdin(const std::string&)` or
+    /// `Exec::set_stdin(const std::vector<uint8_t>&)`, it is written to the child
     /// concurrently with draining stdout and stderr, avoiding deadlocks.
     ///
     /// @returns `Result<CaptureData>` — on success, the captured stdout,

@@ -23,32 +23,32 @@ namespace subprocess {
     return *this;
   }
 
-  Pipeline& Pipeline::stdin_(Redirection r) {
+  Pipeline& Pipeline::set_stdin(Redirection r) {
     stdin_override_ = std::move(r);
     return *this;
   }
 
-  Pipeline& Pipeline::stdin_(NullFile) {
+  Pipeline& Pipeline::set_stdin(NullFile) {
     stdin_override_ = Redirection::Read(SUBPROCESS_DEVNULL).or_throw();
     return *this;
   }
 
-  Pipeline& Pipeline::stdout_(Redirection r) {
+  Pipeline& Pipeline::set_stdout(Redirection r) {
     stdout_override_ = std::move(r);
     return *this;
   }
 
-  Pipeline& Pipeline::stdout_(NullFile) {
+  Pipeline& Pipeline::set_stdout(NullFile) {
     stdout_override_ = Redirection::Write(SUBPROCESS_DEVNULL).or_throw();
     return *this;
   }
 
-  Pipeline& Pipeline::stderr_(Redirection r) {
+  Pipeline& Pipeline::set_stderr(Redirection r) {
     stderr_override_ = std::move(r);
     return *this;
   }
 
-  Pipeline& Pipeline::stderr_(NullFile) {
+  Pipeline& Pipeline::set_stderr(NullFile) {
     stderr_override_ = Redirection::Write(SUBPROCESS_DEVNULL).or_throw();
     return *this;
   }
@@ -96,23 +96,23 @@ namespace subprocess {
       // --- stdin ---
       if (i == 0) {
         if (stdin_override_) {
-          stage.stdin_(std::move(*stdin_override_));
+          stage.set_stdin(std::move(*stdin_override_));
           stdin_override_ = std::nullopt;
         }
       } else {
         // Read end of the previous inter-process pipe.
-        stage.stdin_(Redirection::FileDescriptor(pipes[i - 1].first));
+        stage.set_stdin(Redirection::FileDescriptor(pipes[i - 1].first));
       }
 
       // --- stdout ---
       if (i == n - 1) {
         if (stdout_override_) {
-          stage.stdout_(std::move(*stdout_override_));
+          stage.set_stdout(std::move(*stdout_override_));
           stdout_override_ = std::nullopt;
         }
       } else {
         // Write end of the next inter-process pipe.
-        stage.stdout_(Redirection::FileDescriptor(pipes[i].second));
+        stage.set_stdout(Redirection::FileDescriptor(pipes[i].second));
       }
 
       // --- stderr ---
@@ -120,7 +120,7 @@ namespace subprocess {
         // We need to duplicate the override for each stage (move it into the
         // last one, copy for earlier ones by duplicating the fd).
         if (i == n - 1) {
-          stage.stderr_(std::move(*stderr_override_));
+          stage.set_stderr(std::move(*stderr_override_));
           stderr_override_ = std::nullopt;
         } else {
           // Duplicate the fd so each stage gets its own copy.
@@ -130,11 +130,11 @@ namespace subprocess {
             if (dup_result == -1) {
               return PopenError{ PopenError::IoError, "dup() failed for stderr redirection" };
             }
-            stage.stderr_(Redirection::FileDescriptor(dup_result));
+            stage.set_stderr(Redirection::FileDescriptor(dup_result));
           } else if (stderr_override_->is_a<Redirection::Pipe>()) {
-            stage.stderr_(Redirection::Pipe{});
+            stage.set_stderr(Redirection::Pipe{});
           } else if (stderr_override_->is_a<Redirection::Merge>()) {
-            stage.stderr_(Redirection::Merge{});
+            stage.set_stderr(Redirection::Merge{});
           }
           // None: do nothing
         }
@@ -208,7 +208,7 @@ namespace subprocess {
     // stderr_override_ mechanism (which broadcasts a single fd), we apply
     // Pipe() to each stage's stderr directly before calling popen().
     for (Exec& stage : stages_) {
-      stage.stderr_(Redirection::Pipe());
+      stage.set_stderr(Redirection::Pipe());
     }
 
     auto procs_result = popen();

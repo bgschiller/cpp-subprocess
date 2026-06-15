@@ -95,7 +95,7 @@ namespace subprocess {
   }
   Exec&& Exec::cwd(const std::filesystem::path& dir) && { return std::move(this->cwd(dir)); }
 
-  Exec& Exec::stdin_(const std::vector<uint8_t>& data) & {
+  Exec& Exec::set_stdin(const std::vector<uint8_t>& data) & {
     if (!config.stdin_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdin is already set");
     }
@@ -103,9 +103,11 @@ namespace subprocess {
     stdin_data = data;
     return *this;
   }
-  Exec&& Exec::stdin_(const std::vector<uint8_t>& data) && { return std::move(this->stdin_(data)); }
+  Exec&& Exec::set_stdin(const std::vector<uint8_t>& data) && {
+    return std::move(this->set_stdin(data));
+  }
 
-  Exec& Exec::stdin_(const std::string& data) & {
+  Exec& Exec::set_stdin(const std::string& data) & {
     if (!config.stdin_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdin is already set");
     }
@@ -113,9 +115,9 @@ namespace subprocess {
     stdin_data = std::vector<uint8_t>(data.begin(), data.end());
     return *this;
   }
-  Exec&& Exec::stdin_(const std::string& data) && { return std::move(this->stdin_(data)); }
+  Exec&& Exec::set_stdin(const std::string& data) && { return std::move(this->set_stdin(data)); }
 
-  Exec& Exec::stdin_(Redirection redirection) & {
+  Exec& Exec::set_stdin(Redirection redirection) & {
     bool pipeReplacingPipe =
         config.stdin_.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
     if (!config.stdin_.is_a<Redirection::None>() && !pipeReplacingPipe) {
@@ -124,11 +126,11 @@ namespace subprocess {
     config.stdin_ = std::move(redirection);
     return *this;
   }
-  Exec&& Exec::stdin_(Redirection redirection) && {
-    return std::move(this->stdin_(std::move(redirection)));
+  Exec&& Exec::set_stdin(Redirection redirection) && {
+    return std::move(this->set_stdin(std::move(redirection)));
   }
 
-  Exec& Exec::stdin_(NullFile) & {
+  Exec& Exec::set_stdin(NullFile) & {
     if (!config.stdin_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdin is already set");
     }
@@ -139,9 +141,9 @@ namespace subprocess {
 #endif
     return *this;
   }
-  Exec&& Exec::stdin_(NullFile nf) && { return std::move(this->stdin_(nf)); }
+  Exec&& Exec::set_stdin(NullFile nf) && { return std::move(this->set_stdin(nf)); }
 
-  Exec& Exec::stdout_(Redirection redirection) & {
+  Exec& Exec::set_stdout(Redirection redirection) & {
     bool pipeReplacingPipe =
         config.stdout_.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
     if (!config.stdout_.is_a<Redirection::None>() && !pipeReplacingPipe) {
@@ -150,11 +152,11 @@ namespace subprocess {
     config.stdout_ = std::move(redirection);
     return *this;
   }
-  Exec&& Exec::stdout_(Redirection redirection) && {
-    return std::move(this->stdout_(std::move(redirection)));
+  Exec&& Exec::set_stdout(Redirection redirection) && {
+    return std::move(this->set_stdout(std::move(redirection)));
   }
 
-  Exec& Exec::stdout_(NullFile) & {
+  Exec& Exec::set_stdout(NullFile) & {
     if (!config.stdout_.is_a<Redirection::None>()) {
       throw std::runtime_error("stdout is already set");
     }
@@ -165,9 +167,9 @@ namespace subprocess {
 #endif
     return *this;
   }
-  Exec&& Exec::stdout_(NullFile nf) && { return std::move(this->stdout_(nf)); }
+  Exec&& Exec::set_stdout(NullFile nf) && { return std::move(this->set_stdout(nf)); }
 
-  Exec& Exec::stderr_(Redirection redirection) & {
+  Exec& Exec::set_stderr(Redirection redirection) & {
     bool pipeReplacingPipe =
         config.stderr_.is_a<Redirection::Pipe>() && redirection.is_a<Redirection::Pipe>();
     if (!config.stderr_.is_a<Redirection::None>() && !pipeReplacingPipe) {
@@ -176,11 +178,11 @@ namespace subprocess {
     config.stderr_ = std::move(redirection);
     return *this;
   }
-  Exec&& Exec::stderr_(Redirection redirection) && {
-    return std::move(this->stderr_(std::move(redirection)));
+  Exec&& Exec::set_stderr(Redirection redirection) && {
+    return std::move(this->set_stderr(std::move(redirection)));
   }
 
-  Exec& Exec::stderr_(NullFile) & {
+  Exec& Exec::set_stderr(NullFile) & {
     if (!config.stderr_.is_a<Redirection::None>()) {
       throw std::runtime_error("stderr is already set");
     }
@@ -191,7 +193,7 @@ namespace subprocess {
 #endif
     return *this;
   }
-  Exec&& Exec::stderr_(NullFile nf) && { return std::move(this->stderr_(nf)); }
+  Exec&& Exec::set_stderr(NullFile nf) && { return std::move(this->set_stderr(nf)); }
 
   Result<Popen> Exec::popen() {
     // Build argv: command is argv[0], followed by any extra args.
