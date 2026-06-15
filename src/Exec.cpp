@@ -1,6 +1,9 @@
 #include "subprocess/Exec.hpp"
 
+#include <filesystem>
+
 #include "subprocess/Popen.hpp"
+#include "subprocess/Redirection.hpp"
 
 namespace subprocess {
   Exec::Exec(
@@ -196,6 +199,11 @@ namespace subprocess {
   Exec&& Exec::set_stderr(NullFile nf) && { return std::move(this->set_stderr(nf)); }
 
   Result<Popen> Exec::popen() {
+    // If a file-redirection operator stored a deferred error, return it now.
+    if (deferred_error_) {
+      return std::move(*deferred_error_);
+    }
+
     // Build argv: command is argv[0], followed by any extra args.
     std::vector<std::string> argv;
     argv.reserve(1 + args.size());
@@ -264,4 +272,40 @@ namespace subprocess {
     config.stdout_.release_internal_fds();
     config.stderr_.release_internal_fds();
   }
+
+  // ── File redirection operators for Exec ──────────────────────────────────
+
+  Exec operator<(Exec lhs, const std::filesystem::path& rhs) {
+    if (lhs.deferred_error_) return lhs;
+    auto r = Redirection::Read(rhs);
+    if (!r.ok()) {
+      lhs.deferred_error_.emplace(r.take_error());
+      return lhs;
+    }
+    lhs.set_stdin(r.take_value());
+    return lhs;
+  }
+
+  Exec operator>(Exec lhs, const std::filesystem::path& rhs) {
+    if (lhs.deferred_error_) return lhs;
+    auto r = Redirection::Write(rhs);
+    if (!r.ok()) {
+      lhs.deferred_error_.emplace(r.take_error());
+      return lhs;
+    }
+    lhs.set_stdout(r.take_value());
+    return lhs;
+  }
+
+  Exec operator>>(Exec lhs, const std::filesystem::path& rhs) {
+    if (lhs.deferred_error_) return lhs;
+    auto r = Redirection::Append(rhs);
+    if (!r.ok()) {
+      lhs.deferred_error_.emplace(r.take_error());
+      return lhs;
+    }
+    lhs.set_stdout(r.take_value());
+    return lhs;
+  }
+
 }  // namespace subprocess

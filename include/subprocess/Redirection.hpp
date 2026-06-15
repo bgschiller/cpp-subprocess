@@ -82,8 +82,8 @@ namespace subprocess {
 
       FileDescriptor& operator=(const FileDescriptor& other);
 
-      FileDescriptor(FileDescriptor&& other);
-      FileDescriptor& operator=(FileDescriptor&& other);
+      FileDescriptor(FileDescriptor&& other) noexcept;
+      FileDescriptor& operator=(FileDescriptor&& other) noexcept;
     };
 
     /// Redirect the stream to/from the specified path, with other arguments as interpreted by
@@ -126,17 +126,16 @@ namespace subprocess {
     Redirection(Args&&... args)
         : _state{ std::forward<Args>(args)... } { }
 
-    // Redirection(const Redirection& other)
-    // : _state{other._state}
-    // { }
+    Redirection(const Redirection& other)
+        : _state{ other._state } { }
 
-    Redirection(Redirection&& other);
+    Redirection(Redirection&& other) noexcept;
 
-    // Redirection& operator=(const Redirection& other) {
-    //   _state = other._state;
-    //   return *this;
-    // }
-    Redirection& operator=(Redirection&& other);
+    Redirection& operator=(const Redirection& other) {
+      _state = other._state;
+      return *this;
+    }
+    Redirection& operator=(Redirection&& other) noexcept;
 
     template<typename T>
     bool is_a() const {

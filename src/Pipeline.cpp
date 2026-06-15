@@ -1,5 +1,7 @@
 #include "subprocess/Pipeline.hpp"
 
+#include <filesystem>
+
 #ifdef _WIN32
 #define SUBPROCESS_DEVNULL "NUL"
 #else
@@ -54,6 +56,18 @@ namespace subprocess {
   }
 
   Result<std::vector<Popen>> Pipeline::popen() {
+    // If a file-redirection operator stored a deferred error, return it now.
+    if (deferred_error_) {
+      return std::move(*deferred_error_);
+    }
+
+    // Check each stage for deferred errors (e.g. from `Exec::cmd("cat") < "missing"`).
+    for (auto& stage : stages_) {
+      if (stage.has_deferred_error()) {
+        return PopenError{ PopenError::IoError, "deferred error in pipeline stage" };
+      }
+    }
+
     const std::size_t n = stages_.size();
     if (n < 2) {
       return PopenError{ PopenError::LogicError, "Pipeline must have at least two stages" };
@@ -147,11 +161,15 @@ namespace subprocess {
           subprocess::close_fd(pipes[j].first);
           subprocess::close_fd(pipes[j].second);
         }
+        fprintf(stderr, "  Pipeline::popen stage %zu closed remaining pipes\n", i);
         // Release ownership from already-spawned stages' FileDescriptors
         // so they don't double-close the fds we just closed.
         for (std::size_t j = 0; j <= i; ++j) {
+          fprintf(stderr, "  Pipeline::popen releasing fds for stage %zu\n", j);
           stages_[j].release_redirection_fds();
+          fprintf(stderr, "  Pipeline::popen released fds for stage %zu\n", j);
         }
+        fprintf(stderr, "  Pipeline::popen stage %zu returning error\n", i);
         return pop_result.take_error();
       }
       children.push_back(pop_result.take_value());
@@ -245,6 +263,41 @@ namespace subprocess {
 
   Pipeline operator|(Pipeline lhs, Exec rhs) {
     lhs.pipe(std::move(rhs));
+    return lhs;
+  }
+
+  // ── File redirection operators for Pipeline ──────────────────────────────
+
+  Pipeline operator<(Pipeline lhs, const std::filesystem::path& rhs) {
+    if (lhs.deferred_error_) return lhs;
+    auto r = Redirection::Read(rhs);
+    if (!r.ok()) {
+      lhs.deferred_error_.emplace(r.take_error());
+      return lhs;
+    }
+    lhs.set_stdin(r.take_value());
+    return lhs;
+  }
+
+  Pipeline operator>(Pipeline lhs, const std::filesystem::path& rhs) {
+    if (lhs.deferred_error_) return lhs;
+    auto r = Redirection::Write(rhs);
+    if (!r.ok()) {
+      lhs.deferred_error_.emplace(r.take_error());
+      return lhs;
+    }
+    lhs.set_stdout(r.take_value());
+    return lhs;
+  }
+
+  Pipeline operator>>(Pipeline lhs, const std::filesystem::path& rhs) {
+    if (lhs.deferred_error_) return lhs;
+    auto r = Redirection::Append(rhs);
+    if (!r.ok()) {
+      lhs.deferred_error_.emplace(r.take_error());
+      return lhs;
+    }
+    lhs.set_stdout(r.take_value());
     return lhs;
   }
 

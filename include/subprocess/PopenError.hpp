@@ -14,7 +14,7 @@ namespace subprocess {
     std::string message;
 
     PopenError(ErrKind _kind, const std::string& _message);
-    PopenError(PopenError&& other);
+    PopenError(PopenError&& other) noexcept;
     PopenError(const PopenError& other);
   };
 }  // namespace subprocess

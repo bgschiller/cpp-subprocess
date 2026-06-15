@@ -40,12 +40,13 @@ Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(const FileDe
   return *this;
 }
 
-Redirection::FileDescriptor::FileDescriptor(FileDescriptor&& other)
+Redirection::FileDescriptor::FileDescriptor(FileDescriptor&& other) noexcept
     : fd{ other.fd }
     , _owned{ true } {
   other._owned = false;
 }
-Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(FileDescriptor&& other) {
+Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(
+    FileDescriptor&& other) noexcept {
   discard();
   fd = other.fd;
   _owned = other._owned;
@@ -81,10 +82,10 @@ Result<Redirection> Redirection::Append(const std::filesystem::path& path) {
   return Open(path.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);
 }
 
-Redirection::Redirection(Redirection&& other)
+Redirection::Redirection(Redirection&& other) noexcept
     : _state{ std::move(other._state) } { }
 
-Redirection& Redirection::operator=(Redirection&& other) {
+Redirection& Redirection::operator=(Redirection&& other) noexcept {
   _state = std::move(other._state);
   return *this;
 }

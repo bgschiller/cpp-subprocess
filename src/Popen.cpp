@@ -544,10 +544,12 @@ std::optional<PopenError> Popen::os_start(
       child_state = ChildState::Running{ child_pid };
     }
   }
-  ::close(std::get<1>(exec_fail_pipe));
+  int fd0 = std::get<0>(exec_fail_pipe);
+  int fd1 = std::get<1>(exec_fail_pipe);
+  ::close(fd1);
   int32_t err;
-  auto readCnt = ::read(std::get<0>(exec_fail_pipe), &err, sizeof(err));
-  ::close(std::get<0>(exec_fail_pipe));
+  auto readCnt = ::read(fd0, &err, sizeof(err));
+  ::close(fd0);
   if (readCnt == 0) {
     // no error written, ok
     return std::nullopt;

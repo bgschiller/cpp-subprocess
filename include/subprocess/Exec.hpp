@@ -1,12 +1,14 @@
 #ifndef SUBPROCESS_EXEC_H_
 #define SUBPROCESS_EXEC_H_
 
+#include <filesystem>
 #include <optional>
 #include <string>
 
 #include "CaptureData.hpp"
 #include "Popen.hpp"
 #include "PopenConfig.hpp"
+#include "PopenError.hpp"
 #include "Redirection.hpp"
 #include "Result.hpp"
 #include "vendor/fdstream.hpp"
@@ -27,6 +29,12 @@ namespace subprocess {
   struct NullFile { };
 
   class Exec {
+    // File-redirection operators need access to deferred_error_ so they can
+    // store a file-open failure without changing the return type from Exec.
+    friend Exec operator<(Exec lhs, const std::filesystem::path& rhs);
+    friend Exec operator>(Exec lhs, const std::filesystem::path& rhs);
+    friend Exec operator>>(Exec lhs, const std::filesystem::path& rhs);
+
    private:
     Exec(
         std::string command, std::vector<std::string> args, PopenConfig config,
@@ -35,6 +43,11 @@ namespace subprocess {
     std::vector<std::string> args;
     PopenConfig config;
     std::optional<std::vector<uint8_t>> stdin_data;
+
+    /// Deferred error from a file-redirection operator that failed to open a
+    /// file.  Checked at the start of popen() so the error is surfaced at
+    /// execution time while keeping operator chaining clean.
+    std::optional<PopenError> deferred_error_;
 
    public:
     Exec() = delete;
@@ -202,7 +215,15 @@ namespace subprocess {
     /// @overload
     Exec&& set_stderr(NullFile) &&;
 
+    /// Returns `true` if a previous file-redirection operator stored a
+    /// deferred error (e.g. the file does not exist or is not readable).
+    bool has_deferred_error() const { return deferred_error_.has_value(); }
+
     /// Launch the configured process and return a `Popen` handle.
+    ///
+    /// If a deferred error was stored by a file-redirection operator
+    /// (`operator<`, `operator>`, `operator>>`), it is returned immediately
+    /// without spawning a child.
     ///
     /// The argument list passed to the child is `[command] + args`, where
     /// `command` is the value supplied to `Exec::cmd()` and `args` are any

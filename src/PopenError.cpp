@@ -6,7 +6,7 @@ PopenError::PopenError(ErrKind _kind, const std::string& _message)
     : kind{ _kind }
     , message{ _message } { }
 
-PopenError::PopenError(PopenError&& other)
+PopenError::PopenError(PopenError&& other) noexcept
     : kind{ other.kind }
     , message{ std::move(other.message) } { }
 
