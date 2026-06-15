@@ -174,8 +174,19 @@ namespace subprocess {
      */
     Result<std::optional<ExitStatus>> wait_timeout(std::chrono::milliseconds us);
 
-    ChildState child_state;
-    bool detached;
+    /**
+     * Detach the process so the destructor does not wait for it.
+     *
+     * After calling `detach()`, the `Popen` destructor becomes a no-op:
+     * no signals are sent and `wait()` is not called.  The caller is
+     * responsible for reaping the child.  This is a one-way toggle —
+     * once detached, the process cannot be re-attached.
+     *
+     * `detach()` is intended for streaming I/O scenarios where the
+     * `Popen` handle is going out of scope but the returned stream
+     * (stdin/stdout) is still needed.
+     */
+    void detach();
 
     std::optional<boost::fdostream> std_in{ std::nullopt };
     std::optional<boost::fdistream> std_out{ std::nullopt };
@@ -186,6 +197,9 @@ namespace subprocess {
     // constructor clears this on the donor so its destructor is a no-op,
     // keeping the meaning of `detached` strictly caller-visible.
     bool alive_{ true };
+
+    ChildState child_state;
+    bool detached;
 
     DestructorPolicy destructor_policy_{ DestructorPolicy::Wait };
     std::chrono::milliseconds kill_grace_period_{ 0 };

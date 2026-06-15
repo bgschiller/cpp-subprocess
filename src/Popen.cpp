@@ -73,12 +73,12 @@ Popen::~Popen() {
 }
 
 Popen::Popen(Popen&& other) noexcept
-    : child_state{ std::move(other.child_state) }
-    , detached{ other.detached }
-    , std_in{ std::move(other.std_in) }
+    : std_in{ std::move(other.std_in) }
     , std_out{ std::move(other.std_out) }
     , std_err{ std::move(other.std_err) }
     , alive_{ other.alive_ }
+    , child_state{ std::move(other.child_state) }
+    , detached{ other.detached }
     , destructor_policy_{ other.destructor_policy_ }
     , kill_grace_period_{ other.kill_grace_period_ } {
   // Mark the donor as dead so its destructor is a no-op.  We deliberately
@@ -88,12 +88,12 @@ Popen::Popen(Popen&& other) noexcept
 
 Popen& Popen::operator=(Popen&& other) noexcept {
   if (this != &other) {
-    child_state = std::move(other.child_state);
-    detached = other.detached;
     std_in = std::move(other.std_in);
     std_out = std::move(other.std_out);
     std_err = std::move(other.std_err);
     alive_ = other.alive_;
+    child_state = std::move(other.child_state);
+    detached = other.detached;
     destructor_policy_ = other.destructor_policy_;
     kill_grace_period_ = other.kill_grace_period_;
     other.alive_ = false;
@@ -648,6 +648,8 @@ Result<std::nullopt_t> Popen::send_signal(int signum) {
 Result<std::nullopt_t> Popen::terminate() { return send_signal(SIGTERM); }
 
 Result<std::nullopt_t> Popen::kill() { return send_signal(SIGKILL); }
+
+void Popen::detach() { detached = true; }
 
 std::optional<ExitStatus> Popen::exit_status() const {
   if (child_state.is_a<ChildState::Finished>()) {

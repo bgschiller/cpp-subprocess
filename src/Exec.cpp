@@ -222,7 +222,7 @@ namespace subprocess {
     }
     // Detach so the destructor does not block in wait() while the caller
     // has not yet started reading from the stream.
-    proc.detached = true;
+    proc.detach();
     return std::move(*proc.std_out);
   }
 
@@ -254,7 +254,7 @@ namespace subprocess {
     }
     // Detach so the destructor does not block in wait() while the caller
     // has not yet finished writing to the stream.
-    proc.detached = true;
+    proc.detach();
     return std::move(*proc.std_in);
   }
   void Exec::release_redirection_fds() {
