@@ -24,6 +24,7 @@ set(test_sources
   src/type_name_test.cpp
   src/main.cpp
   src/pipeline_test.cpp
+  src/variant_visit_test.cpp
   src/windows_diagnostic_test.cpp
 )
 add_executable(${PROJECT_NAME} ${test_sources})

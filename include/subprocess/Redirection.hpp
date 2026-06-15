@@ -5,7 +5,6 @@
 
 #include <filesystem>
 #include <fstream>
-#include <functional>
 #include <optional>
 #include <variant>
 
@@ -154,11 +153,25 @@ namespace subprocess {
     /// will not close it.  Used by Pipeline after manually closing pipe fds.
     void release_internal_fds();
 
-    Result<const std::nullopt_t> match(
-        std::function<Result<const std::nullopt_t>(const Pipe&)> pipe_case,
-        std::function<Result<const std::nullopt_t>(const FileDescriptor&)> file_case,
-        std::function<Result<const std::nullopt_t>(const Merge&)> merge_case,
-        std::function<Result<const std::nullopt_t>()> none_case) const;
+    /// std::visit the internal variant with an arbitrary visitor.
+    ///
+    /// The visitor must be callable for every alternative (Pipe, FileDescriptor,
+    /// Merge, None).  The return type is deduced from the visitor — it can be
+    /// Result<T> for any T, bool, int, std::string, or any other type.
+    ///
+    /// Usage with the overloaded<> helper:
+    /// @code
+    ///   auto result = redir.visit(subprocess::internal::overloaded{
+    ///       [](const Redirection::Pipe&)           { return 1; },
+    ///       [](const Redirection::FileDescriptor&) { return 2; },
+    ///       [](const Redirection::Merge&)          { return 3; },
+    ///       [](const Redirection::None&)           { return 4; },
+    ///   });
+    /// @endcode
+    template<typename Visitor>
+    auto visit(Visitor&& v) const -> decltype(std::visit(std::forward<Visitor>(v), _state)) {
+      return std::visit(std::forward<Visitor>(v), _state);
+    }
   };
 }  // namespace subprocess
 #endif

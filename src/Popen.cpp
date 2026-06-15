@@ -25,6 +25,7 @@
 
 #include "subprocess/CaptureData.hpp"
 #include "subprocess/detail/posix.hpp"
+#include "subprocess/detail/variant_helpers.hpp"
 
 using namespace subprocess;
 using namespace std::chrono_literals;
@@ -355,31 +356,33 @@ std::optional<PopenError> Popen::os_start(
 }
 
 Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
-  return child_state.match(
-      [](const ChildState::Preparing&) -> Result<const std::nullopt_t> {
-        panic("child_state == Preparing");
-        return std::nullopt;
-      },
-      [block, this](const ChildState::Running& r) -> Result<const std::nullopt_t> {
-        HANDLE h = static_cast<HANDLE>(r.process_handle);
-        DWORD timeout_ms = block ? INFINITE : 0;
-        DWORD result = WaitForSingleObject(h, timeout_ms);
-        if (result == WAIT_TIMEOUT) {
-          return std::nullopt;
-        }
-        if (result == WAIT_FAILED) {
-          return PopenError{ PopenError::IoError,
-                             std::string("WaitForSingleObject failed: ") +
-                                 std::to_string(static_cast<int>(GetLastError())) };
-        }
-        DWORD exit_code = 0;
-        GetExitCodeProcess(h, &exit_code);
-        CloseHandle(h);
-        this->child_state =
-            ChildState::Finished{ ExitStatus::Exited{ static_cast<int32_t>(exit_code) } };
-        return std::nullopt;
-      },
-      [](const ChildState::Finished&) -> Result<const std::nullopt_t> { return std::nullopt; });
+  return child_state.visit(
+      subprocess::internal::overloaded{
+          [](const ChildState::Preparing&) -> Result<const std::nullopt_t> {
+            panic("child_state == Preparing");
+            return std::nullopt;
+          },
+          [block, this](const ChildState::Running& r) -> Result<const std::nullopt_t> {
+            HANDLE h = static_cast<HANDLE>(r.process_handle);
+            DWORD timeout_ms = block ? INFINITE : 0;
+            DWORD result = WaitForSingleObject(h, timeout_ms);
+            if (result == WAIT_TIMEOUT) {
+              return std::nullopt;
+            }
+            if (result == WAIT_FAILED) {
+              return PopenError{ PopenError::IoError,
+                                 std::string("WaitForSingleObject failed: ") +
+                                     std::to_string(static_cast<int>(GetLastError())) };
+            }
+            DWORD exit_code = 0;
+            GetExitCodeProcess(h, &exit_code);
+            CloseHandle(h);
+            this->child_state =
+                ChildState::Finished{ ExitStatus::Exited{ static_cast<int32_t>(exit_code) } };
+            return std::nullopt;
+          },
+          [](const ChildState::Finished&) -> Result<const std::nullopt_t> { return std::nullopt; },
+      });
 }
 
 Result<std::nullopt_t> Popen::send_signal(int signum) {
@@ -422,61 +425,70 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(
   MergeKind merge = MergeKind::None;
 
   {
-    Result<const std::nullopt_t> res = stin.match(
-        [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
-          auto stream = prepare_pipe_to_child(child_stdin);
-          if (!stream.ok()) return stream.take_error();
-          this->std_in = stream.take_value();
-          return std::nullopt;
-        },
-        [&](const Redirection::FileDescriptor& file) { return prepare_file(file.fd, child_stdin); },
-        [&](const Redirection::Merge&) -> Result<const std::nullopt_t> {
-          return PopenError{ PopenError::LogicError, "Redirection::Merge is not valid for stdin" };
-        },
-        [] { /* inherit fds */
-             return std::nullopt;
+    Result<const std::nullopt_t> res = stin.visit(
+        subprocess::internal::overloaded{
+            [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
+              auto stream = prepare_pipe_to_child(child_stdin);
+              if (!stream.ok()) return stream.take_error();
+              this->std_in = stream.take_value();
+              return std::nullopt;
+            },
+            [&](const Redirection::FileDescriptor& file) -> Result<const std::nullopt_t> {
+              return prepare_file(file.fd, child_stdin);
+            },
+            [&](const Redirection::Merge&) -> Result<const std::nullopt_t> {
+              return PopenError{ PopenError::LogicError,
+                                 "Redirection::Merge is not valid for stdin" };
+            },
+            [](const Redirection::None&) -> Result<const std::nullopt_t> { /* inherit fds */
+                                                                           return std::nullopt;
+            },
         });
     if (!res.ok()) return res.take_error();
   }
 
   {
-    Result<const std::nullopt_t> res = stout.match(
-        [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
-          auto stream = prepare_pipe_from_child(child_stdout);
-          if (!stream.ok()) return stream.take_error();
-          this->std_out = stream.take_value();
-          return std::nullopt;
-        },
-        [&](const Redirection::FileDescriptor& file) {
-          return prepare_file(file.fd, child_stdout);
-        },
-        [&](const Redirection::Merge&) {
-          merge = MergeKind::OutToErr;
-          return std::nullopt;
-        },
-        [] { /* inherit fds */
-             return std::nullopt;
+    Result<const std::nullopt_t> res = stout.visit(
+        subprocess::internal::overloaded{
+            [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
+              auto stream = prepare_pipe_from_child(child_stdout);
+              if (!stream.ok()) return stream.take_error();
+              this->std_out = stream.take_value();
+              return std::nullopt;
+            },
+            [&](const Redirection::FileDescriptor& file) -> Result<const std::nullopt_t> {
+              return prepare_file(file.fd, child_stdout);
+            },
+            [&](const Redirection::Merge&) -> Result<const std::nullopt_t> {
+              merge = MergeKind::OutToErr;
+              return std::nullopt;
+            },
+            [](const Redirection::None&) -> Result<const std::nullopt_t> { /* inherit fds */
+                                                                           return std::nullopt;
+            },
         });
     if (!res.ok()) return res.take_error();
   }
 
   {
-    Result<const std::nullopt_t> res = sterr.match(
-        [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
-          auto stream = prepare_pipe_from_child(child_stderr);
-          if (!stream.ok()) return stream.take_error();
-          this->std_err = stream.take_value();
-          return std::nullopt;
-        },
-        [&](const Redirection::FileDescriptor& file) {
-          return prepare_file(file.fd, child_stderr);
-        },
-        [&](const Redirection::Merge&) {
-          merge = MergeKind::ErrToOut;
-          return std::nullopt;
-        },
-        [] { /* inherit fds */
-             return std::nullopt;
+    Result<const std::nullopt_t> res = sterr.visit(
+        subprocess::internal::overloaded{
+            [&, this](const Redirection::Pipe&) -> Result<const std::nullopt_t> {
+              auto stream = prepare_pipe_from_child(child_stderr);
+              if (!stream.ok()) return stream.take_error();
+              this->std_err = stream.take_value();
+              return std::nullopt;
+            },
+            [&](const Redirection::FileDescriptor& file) -> Result<const std::nullopt_t> {
+              return prepare_file(file.fd, child_stderr);
+            },
+            [&](const Redirection::Merge&) -> Result<const std::nullopt_t> {
+              merge = MergeKind::ErrToOut;
+              return std::nullopt;
+            },
+            [](const Redirection::None&) -> Result<const std::nullopt_t> { /* inherit fds */
+                                                                           return std::nullopt;
+            },
         });
     if (!res.ok()) return res.take_error();
   }
@@ -601,31 +613,33 @@ int32_t Popen::do_exec(
 }
 
 Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
-  return child_state.match(
-      [](const ChildState::Preparing&) -> Result<const std::nullopt_t> {
-        panic("child_state == Preparing");
-        return std::nullopt;
-      },
-      [block, this](const ChildState::Running& r) -> Result<const std::nullopt_t> {
-        int status = 0;
-        pid_t pid = ::waitpid(r.pid, &status, block ? 0 : WNOHANG);
-        if (pid < 0) {
-          if (errno == ECHILD) {
-            // Someone else has waited for the child
-            // (another thread, a signal handler...).
-            // The PID no longer exists and we cannot
-            // find its exit status.
-            this->child_state = ChildState::Finished{ ExitStatus::Undetermined{} };
+  return child_state.visit(
+      subprocess::internal::overloaded{
+          [](const ChildState::Preparing&) -> Result<const std::nullopt_t> {
+            panic("child_state == Preparing");
             return std::nullopt;
-          }
-          return PopenError{ PopenError::IoError, std::string("waitpid: ") + strerror(errno) };
-        }
-        if (pid == r.pid) {
-          this->child_state = ChildState::Finished{ decode_exit_status(status) };
-        }
-        return std::nullopt;
-      },
-      [](const ChildState::Finished&) -> Result<const std::nullopt_t> { return std::nullopt; });
+          },
+          [block, this](const ChildState::Running& r) -> Result<const std::nullopt_t> {
+            int status = 0;
+            pid_t pid = ::waitpid(r.pid, &status, block ? 0 : WNOHANG);
+            if (pid < 0) {
+              if (errno == ECHILD) {
+                // Someone else has waited for the child
+                // (another thread, a signal handler...).
+                // The PID no longer exists and we cannot
+                // find its exit status.
+                this->child_state = ChildState::Finished{ ExitStatus::Undetermined{} };
+                return std::nullopt;
+              }
+              return PopenError{ PopenError::IoError, std::string("waitpid: ") + strerror(errno) };
+            }
+            if (pid == r.pid) {
+              this->child_state = ChildState::Finished{ decode_exit_status(status) };
+            }
+            return std::nullopt;
+          },
+          [](const ChildState::Finished&) -> Result<const std::nullopt_t> { return std::nullopt; },
+      });
 }
 
 Result<std::nullopt_t> Popen::send_signal(int signum) {

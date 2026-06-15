@@ -71,6 +71,15 @@ namespace subprocess {
 
     std::string toString() const;
 
+    /// std::visit the internal variant with an arbitrary visitor.
+    ///
+    /// The visitor must be callable for every alternative (Exited, Signaled,
+    /// Other, Undetermined).  The return type is deduced from the visitor.
+    template<typename Visitor>
+    auto visit(Visitor&& v) const -> decltype(std::visit(std::forward<Visitor>(v), _state)) {
+      return std::visit(std::forward<Visitor>(v), _state);
+    }
+
     ExitStatus& operator=(ExitStatus&& other);
   };
 }  // namespace subprocess
