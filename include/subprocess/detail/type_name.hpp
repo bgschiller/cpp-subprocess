@@ -1,5 +1,5 @@
-#ifndef SUBPROCESS_TYPE_HPP
-#define SUBPROCESS_TYPE_HPP
+#ifndef SUBPROCESS_DETAIL_TYPE_NAME_H_
+#define SUBPROCESS_DETAIL_TYPE_NAME_H_
 
 #include <string>
 #include <typeinfo>

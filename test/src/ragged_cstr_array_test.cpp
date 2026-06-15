@@ -1,6 +1,6 @@
 #include <catch2/catch.hpp>
 
-#include "subprocess/RaggedCstrArray.hpp"
+#include "subprocess/detail/RaggedCstrArray.hpp"
 
 using namespace subprocess;
 

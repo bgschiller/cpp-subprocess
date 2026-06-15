@@ -1,4 +1,4 @@
-#include "subprocess/posix.hpp"
+#include "subprocess/detail/posix.hpp"
 
 #include <string.h>
 

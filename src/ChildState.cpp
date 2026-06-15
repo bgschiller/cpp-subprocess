@@ -1,6 +1,6 @@
-#include "subprocess/ChildState.hpp"
+#include "subprocess/detail/ChildState.hpp"
 
-#include "subprocess/variant_helpers.hpp"
+#include "subprocess/detail/variant_helpers.hpp"
 
 using namespace subprocess;
 using namespace subprocess::internal;

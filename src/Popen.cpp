@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "subprocess/CaptureData.hpp"
-#include "subprocess/posix.hpp"
+#include "subprocess/detail/posix.hpp"
 
 using namespace subprocess;
 using namespace std::chrono_literals;

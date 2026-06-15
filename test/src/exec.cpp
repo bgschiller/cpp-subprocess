@@ -12,7 +12,7 @@
 #include "subprocess/ExitStatus.hpp"
 #include "subprocess/Popen.hpp"
 #include "subprocess/Redirection.hpp"
-#include "subprocess/posix.hpp"
+#include "subprocess/detail/posix.hpp"
 #include "vendor/fdstream.hpp"
 
 #ifdef _WIN32

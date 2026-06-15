@@ -1,7 +1,7 @@
 #ifndef _WIN32
 // PrepExec is the Unix fork/exec helper — it is not used on Windows.
 
-#include "subprocess/PrepExec.hpp"
+#include "subprocess/detail/PrepExec.hpp"
 
 #include <string.h>
 #include <unistd.h>

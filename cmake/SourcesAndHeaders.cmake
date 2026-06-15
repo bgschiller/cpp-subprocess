@@ -15,20 +15,25 @@ set(exe_sources
 		${sources}
 )
 
+set(detail_headers
+    include/subprocess/detail/ChildState.hpp
+    include/subprocess/detail/platform.hpp
+    include/subprocess/detail/posix.hpp
+    include/subprocess/detail/PrepExec.hpp
+    include/subprocess/detail/RaggedCstrArray.hpp
+    include/subprocess/detail/type_name.hpp
+    include/subprocess/detail/variant_helpers.hpp
+)
+
 set(headers
     include/subprocess/CaptureData.hpp
-    include/subprocess/ChildState.hpp
     include/subprocess/Exec.hpp
     include/subprocess/ExitStatus.hpp
     include/subprocess/Popen.hpp
     include/subprocess/PopenConfig.hpp
     include/subprocess/PopenError.hpp
-    include/subprocess/posix.hpp
-    include/subprocess/PrepExec.hpp
-    include/subprocess/RaggedCstrArray.hpp
     include/subprocess/Redirection.hpp
     include/subprocess/Result.hpp
-    include/subprocess/type_name.hpp
-    include/subprocess/variant_helpers.hpp
     include/subprocess/Pipeline.hpp
+    ${detail_headers}
 )

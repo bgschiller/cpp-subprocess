@@ -1,5 +1,5 @@
-#ifndef SUBPROCESS_PREP_EXEC_H_
-#define SUBPROCESS_PREP_EXEC_H_
+#ifndef SUBPROCESS_DETAIL_PREP_EXEC_H_
+#define SUBPROCESS_DETAIL_PREP_EXEC_H_
 
 #include <stdint.h>
 

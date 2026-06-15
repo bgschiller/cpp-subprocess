@@ -1,5 +1,5 @@
-#ifndef SUBPROCESS_CHILD_STATE_H_
-#define SUBPROCESS_CHILD_STATE_H_
+#ifndef SUBPROCESS_DETAIL_CHILD_STATE_H_
+#define SUBPROCESS_DETAIL_CHILD_STATE_H_
 #include <stdint.h>
 
 #include <fstream>
@@ -7,9 +7,9 @@
 #include <optional>
 #include <variant>
 
-#include "ExitStatus.hpp"
-#include "Result.hpp"
-#include "detail/platform.hpp"
+#include "../ExitStatus.hpp"
+#include "../Result.hpp"
+#include "platform.hpp"
 namespace subprocess {
   struct ChildState {
     struct Preparing { };

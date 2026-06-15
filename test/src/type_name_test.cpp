@@ -1,4 +1,4 @@
-#include "subprocess/type_name.hpp"
+#include "subprocess/detail/type_name.hpp"
 
 #include <catch2/catch.hpp>
 

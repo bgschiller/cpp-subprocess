@@ -1,13 +1,13 @@
-#ifndef SUBPROCESS_POSIX_H_
-#define SUBPROCESS_POSIX_H_
+#ifndef SUBPROCESS_DETAIL_POSIX_H_
+#define SUBPROCESS_DETAIL_POSIX_H_
 
 #include <iostream>
 #include <string>
 #include <tuple>
 
-#include "ExitStatus.hpp"
-#include "Result.hpp"
-#include "detail/platform.hpp"
+#include "../ExitStatus.hpp"
+#include "../Result.hpp"
+#include "platform.hpp"
 
 namespace subprocess {
 

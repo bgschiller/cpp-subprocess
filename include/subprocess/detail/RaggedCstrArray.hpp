@@ -1,5 +1,5 @@
-#ifndef SUBPROCESS_RAII_CHAR_STAR_H_
-#define SUBPROCESS_RAII_CHAR_STAR_H_
+#ifndef SUBPROCESS_DETAIL_RAGGED_CSTR_ARRAY_H_
+#define SUBPROCESS_DETAIL_RAGGED_CSTR_ARRAY_H_
 
 #include <iterator>
 #include <string>

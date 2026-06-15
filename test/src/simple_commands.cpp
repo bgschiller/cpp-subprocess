@@ -16,7 +16,7 @@
 
 #include "subprocess/Popen.hpp"
 #include "subprocess/Redirection.hpp"
-#include "subprocess/posix.hpp"
+#include "subprocess/detail/posix.hpp"
 
 using namespace subprocess;
 

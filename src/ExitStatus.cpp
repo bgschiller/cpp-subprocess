@@ -1,6 +1,6 @@
 #include "subprocess/ExitStatus.hpp"
 
-#include "subprocess/variant_helpers.hpp"
+#include "subprocess/detail/variant_helpers.hpp"
 
 using namespace subprocess;
 

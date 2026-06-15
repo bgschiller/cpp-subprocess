@@ -9,7 +9,7 @@
 #include <stdexcept>
 
 #include "subprocess/PopenError.hpp"
-#include "subprocess/posix.hpp"
+#include "subprocess/detail/posix.hpp"
 
 namespace subprocess {
 

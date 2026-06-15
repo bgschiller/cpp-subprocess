@@ -11,7 +11,6 @@
 
 #include "subprocess/Result.hpp"
 #include "subprocess/detail/platform.hpp"
-#include "subprocess/variant_helpers.hpp"
 
 namespace subprocess {
 

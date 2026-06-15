@@ -10,16 +10,16 @@
 #include <vector>
 
 #include "CaptureData.hpp"
-#include "ChildState.hpp"
 #include "ExitStatus.hpp"
 #include "PopenConfig.hpp"
 #include "PopenError.hpp"
 #include "Result.hpp"
+#include "detail/ChildState.hpp"
 #include "detail/platform.hpp"
 #include "vendor/fdstream.hpp"
 
 #ifndef _WIN32
-#include "PrepExec.hpp"
+#include "detail/PrepExec.hpp"
 #endif
 
 namespace subprocess {

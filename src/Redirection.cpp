@@ -10,8 +10,8 @@
 #include <unistd.h>
 #endif
 
-#include "subprocess/posix.hpp"
-#include "subprocess/variant_helpers.hpp"
+#include "subprocess/detail/posix.hpp"
+#include "subprocess/detail/variant_helpers.hpp"
 
 using namespace subprocess;
 using namespace subprocess::internal;

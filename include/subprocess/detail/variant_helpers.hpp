@@ -1,11 +1,11 @@
-#ifndef SUBPROCESS_VARIANT_HELPERS_H_
-#define SUBPROCESS_VARIANT_HELPERS_H_
+#ifndef SUBPROCESS_DETAIL_VARIANT_HELPERS_H_
+#define SUBPROCESS_DETAIL_VARIANT_HELPERS_H_
 
 #include <iostream>
 #include <string>
 #include <type_traits>
 
-#include "subprocess/type_name.hpp"
+#include "type_name.hpp"
 
 namespace subprocess::internal {
 
