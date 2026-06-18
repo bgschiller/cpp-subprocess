@@ -3,6 +3,7 @@
 #include <signal.h>
 
 #include <chrono>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -13,15 +14,16 @@
 #include "PopenConfig.hpp"
 #include "PopenError.hpp"
 #include "Result.hpp"
-#include "detail/ChildState.hpp"
 #include "detail/platform.hpp"
 #include "vendor/fdstream.hpp"
 
-#ifndef _WIN32
-#include "detail/PrepExec.hpp"
-#endif
-
 namespace subprocess {
+
+  struct ChildState;
+
+#ifndef _WIN32
+  class PrepExec;  // forward declaration
+#endif
 
   class Popen {
    public:
@@ -197,17 +199,15 @@ namespace subprocess {
     // keeping the meaning of `detached` strictly caller-visible.
     bool alive_{ true };
 
-    ChildState child_state;
+    std::unique_ptr<ChildState> child_state_;
     bool detached;
 
     DestructorPolicy destructor_policy_{ DestructorPolicy::Wait };
     std::chrono::milliseconds kill_grace_period_{ 0 };
 
-    Popen(ChildState cs, bool det, DestructorPolicy dp, std::chrono::milliseconds kgp)
-        : child_state{ std::move(cs) }
-        , detached{ det }
-        , destructor_policy_{ dp }
-        , kill_grace_period_{ kgp } { }
+    Popen(
+        std::unique_ptr<ChildState> cs, bool det, DestructorPolicy dp,
+        std::chrono::milliseconds kgp);
 
     std::optional<PopenError> os_start(
         const std::vector<std::string>& argv, const PopenConfig& cfg);

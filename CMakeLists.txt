@@ -225,6 +225,8 @@ install(
     include/${PROJECT_NAME_LOWERCASE}
   DESTINATION
     include
+  PATTERN "detail" EXCLUDE
+  PATTERN "vendor" EXCLUDE
 )
 
 verbose_message("Install targets succesfully build. Install with `cmake --build <build_directory> --target install --config <build_config>`.")

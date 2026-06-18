@@ -24,17 +24,26 @@
 #include <vector>
 
 #include "subprocess/CaptureData.hpp"
+#include "subprocess/detail/ChildState.hpp"
 #include "subprocess/detail/posix.hpp"
 #include "subprocess/detail/variant_helpers.hpp"
 
 using namespace subprocess;
 using namespace std::chrono_literals;
 
+Popen::Popen(
+    std::unique_ptr<ChildState> cs, bool det, DestructorPolicy dp, std::chrono::milliseconds kgp)
+    : child_state_{ std::move(cs) }
+    , detached{ det }
+    , destructor_policy_{ dp }
+    , kill_grace_period_{ kgp } { }
+
 Result<Popen> Popen::create(const std::vector<std::string>& argv, const PopenConfig& cfg) {
   if (argv.size() == 0) {
     return PopenError{ PopenError::LogicError, "argv must not be empty" };
   }
-  Popen inst{ ChildState::Preparing(), cfg.detached, cfg.destructor_policy, cfg.kill_grace_period };
+  Popen inst{ std::make_unique<ChildState>(ChildState::Preparing()), cfg.detached,
+              cfg.destructor_policy, cfg.kill_grace_period };
   auto res = inst.os_start(argv, cfg);
   if (res.has_value()) {
     return *res;
@@ -52,7 +61,7 @@ Popen::~Popen() {
   std_out.reset();
   std_err.reset();
   // Apply the configured destructor policy if the child is still running.
-  if (child_state.is_a<ChildState::Running>()) {
+  if (child_state_->is_a<ChildState::Running>()) {
     switch (destructor_policy_) {
       case DestructorPolicy::Wait:
         wait();  // errors are silently ignored inside a destructor
@@ -64,7 +73,7 @@ Popen::~Popen() {
       case DestructorPolicy::TerminateAndKill:
         send_signal(SIGTERM);
         wait_timeout(kill_grace_period_);
-        if (child_state.is_a<ChildState::Running>()) {
+        if (child_state_->is_a<ChildState::Running>()) {
           send_signal(SIGKILL);
           wait();
         }
@@ -78,7 +87,7 @@ Popen::Popen(Popen&& other) noexcept
     , std_out{ std::move(other.std_out) }
     , std_err{ std::move(other.std_err) }
     , alive_{ other.alive_ }
-    , child_state{ std::move(other.child_state) }
+    , child_state_{ std::move(other.child_state_) }
     , detached{ other.detached }
     , destructor_policy_{ other.destructor_policy_ }
     , kill_grace_period_{ other.kill_grace_period_ } {
@@ -93,7 +102,7 @@ Popen& Popen::operator=(Popen&& other) noexcept {
     std_out = std::move(other.std_out);
     std_err = std::move(other.std_err);
     alive_ = other.alive_;
-    child_state = std::move(other.child_state);
+    child_state_ = std::move(other.child_state_);
     detached = other.detached;
     destructor_policy_ = other.destructor_policy_;
     kill_grace_period_ = other.kill_grace_period_;
@@ -351,15 +360,15 @@ std::optional<PopenError> Popen::os_start(
   // We don't need the thread handle.
   CloseHandle(pi.hThread);
 
-  child_state = ChildState::Running{ pi.dwProcessId, static_cast<void*>(pi.hProcess) };
+  *child_state_ = ChildState::Running{ pi.dwProcessId, static_cast<void*>(pi.hProcess) };
   return std::nullopt;
 }
 
 Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
-  return child_state.visit(
+  return child_state_->visit(
       subprocess::internal::overloaded{
           [](const ChildState::Preparing&) -> Result<const std::nullopt_t> {
-            panic("child_state == Preparing");
+            panic("child_state_ == Preparing");
             return std::nullopt;
           },
           [block, this](const ChildState::Running& r) -> Result<const std::nullopt_t> {
@@ -377,7 +386,7 @@ Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
             DWORD exit_code = 0;
             GetExitCodeProcess(h, &exit_code);
             CloseHandle(h);
-            this->child_state =
+            *this->child_state_ =
                 ChildState::Finished{ ExitStatus::Exited{ static_cast<int32_t>(exit_code) } };
             return std::nullopt;
           },
@@ -386,10 +395,10 @@ Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
 }
 
 Result<std::nullopt_t> Popen::send_signal(int signum) {
-  if (!child_state.is_a<ChildState::Running>()) {
+  if (!child_state_->is_a<ChildState::Running>()) {
     return PopenError{ PopenError::LogicError, "send_signal: process is not running" };
   }
-  HANDLE h = static_cast<HANDLE>(child_state.get<ChildState::Running>().process_handle);
+  HANDLE h = static_cast<HANDLE>(child_state_->get<ChildState::Running>().process_handle);
   // On Windows only forceful termination is possible; map SIGTERM and
   // SIGKILL to TerminateProcess and reject arbitrary signal numbers.
   if (signum == SIGTERM || signum == SIGKILL) {
@@ -405,6 +414,8 @@ Result<std::nullopt_t> Popen::send_signal(int signum) {
 }
 
 #else  // !_WIN32
+
+#include "subprocess/detail/PrepExec.hpp"
 
 // ---------------------------------------------------------------------------
 // Unix-specific helpers and implementations
@@ -541,7 +552,7 @@ std::optional<PopenError> Popen::os_start(
       if (std::get<0>(child_ends) != 0) ::close(std::get<0>(child_ends));
       if (std::get<1>(child_ends) != 1) ::close(std::get<1>(child_ends));
       if (std::get<2>(child_ends) != 2) ::close(std::get<2>(child_ends));
-      child_state = ChildState::Running{ child_pid };
+      *child_state_ = ChildState::Running{ child_pid };
     }
   }
   int fd0 = std::get<0>(exec_fail_pipe);
@@ -615,10 +626,10 @@ int32_t Popen::do_exec(
 }
 
 Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
-  return child_state.visit(
+  return child_state_->visit(
       subprocess::internal::overloaded{
           [](const ChildState::Preparing&) -> Result<const std::nullopt_t> {
-            panic("child_state == Preparing");
+            panic("child_state_ == Preparing");
             return std::nullopt;
           },
           [block, this](const ChildState::Running& r) -> Result<const std::nullopt_t> {
@@ -630,13 +641,13 @@ Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
                 // (another thread, a signal handler...).
                 // The PID no longer exists and we cannot
                 // find its exit status.
-                this->child_state = ChildState::Finished{ ExitStatus::Undetermined{} };
+                *this->child_state_ = ChildState::Finished{ ExitStatus::Undetermined{} };
                 return std::nullopt;
               }
               return PopenError{ PopenError::IoError, std::string("waitpid: ") + strerror(errno) };
             }
             if (pid == r.pid) {
-              this->child_state = ChildState::Finished{ decode_exit_status(status) };
+              *this->child_state_ = ChildState::Finished{ decode_exit_status(status) };
             }
             return std::nullopt;
           },
@@ -645,10 +656,10 @@ Result<const std::nullopt_t> Popen::waitpid_impl(bool block) {
 }
 
 Result<std::nullopt_t> Popen::send_signal(int signum) {
-  if (!child_state.is_a<ChildState::Running>()) {
+  if (!child_state_->is_a<ChildState::Running>()) {
     return PopenError{ PopenError::LogicError, "send_signal: process is not running" };
   }
-  pid_t p = child_state.get<ChildState::Running>().pid;
+  pid_t p = child_state_->get<ChildState::Running>().pid;
   if (::kill(p, signum) != 0) {
     return PopenError{ PopenError::IoError, std::string("kill: ") + strerror(errno) };
   }
@@ -668,22 +679,22 @@ Result<std::nullopt_t> Popen::kill() { return send_signal(SIGKILL); }
 void Popen::detach() { detached = true; }
 
 std::optional<ExitStatus> Popen::exit_status() const {
-  if (child_state.is_a<ChildState::Finished>()) {
-    auto finished = child_state.get<ChildState::Finished>();
+  if (child_state_->is_a<ChildState::Finished>()) {
+    auto finished = child_state_->get<ChildState::Finished>();
     return std::make_optional<ExitStatus>(std::move(finished.exit_status));
   }
   return std::nullopt;
 }
 
 std::optional<pid_type> Popen::pid() const {
-  if (child_state.is_a<ChildState::Running>()) {
-    return child_state.get<ChildState::Running>().pid;
+  if (child_state_->is_a<ChildState::Running>()) {
+    return child_state_->get<ChildState::Running>().pid;
   }
   return std::nullopt;
 }
 
 Result<ExitStatus> Popen::wait() {
-  while (child_state.is_a<ChildState::Running>()) {
+  while (child_state_->is_a<ChildState::Running>()) {
     auto res = waitpid_impl(true);
     if (!res.ok()) return res.take_error();
   }
@@ -691,8 +702,8 @@ Result<ExitStatus> Popen::wait() {
 }
 
 Result<std::optional<ExitStatus>> Popen::wait_timeout(std::chrono::milliseconds us) {
-  if (child_state.is_a<ChildState::Finished>()) {
-    return std::make_optional(child_state.get<ChildState::Finished>().exit_status);
+  if (child_state_->is_a<ChildState::Finished>()) {
+    return std::make_optional(child_state_->get<ChildState::Finished>().exit_status);
   }
 
   auto deadline = std::chrono::system_clock::now() + us;
@@ -703,8 +714,8 @@ Result<std::optional<ExitStatus>> Popen::wait_timeout(std::chrono::milliseconds 
     auto success = this->waitpid_impl(false);
     if (!success.ok()) return success.take_error();
 
-    if (child_state.is_a<ChildState::Finished>()) {
-      return std::make_optional(child_state.get<ChildState::Finished>().exit_status);
+    if (child_state_->is_a<ChildState::Finished>()) {
+      return std::make_optional(child_state_->get<ChildState::Finished>().exit_status);
     }
 
     auto now = std::chrono::system_clock::now();
