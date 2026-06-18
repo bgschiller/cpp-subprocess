@@ -122,7 +122,7 @@ Result<boost::fdostream> prepare_pipe_to_child(int& child_end) {
   int parent_end = write;
   child_end = read;
   set_inheritable(parent_end, false);
-  return std::move(boost::fdostream(parent_end));
+  return boost::fdostream(parent_end);
 }
 
 Result<boost::fdistream> prepare_pipe_from_child(int& child_end) {
@@ -132,7 +132,7 @@ Result<boost::fdistream> prepare_pipe_from_child(int& child_end) {
   int parent_end = read;
   child_end = write;
   set_inheritable(parent_end, false);
-  return std::move(boost::fdistream(parent_end));
+  return boost::fdistream(parent_end);
 }
 
 Result<const std::nullopt_t> prepare_file(int fd, int& child_end) {

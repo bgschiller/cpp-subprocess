@@ -97,7 +97,7 @@ TEST_CASE("echo time") {
 #ifndef _WIN32
     SECTION("file descriptor") {
       int fruitsFd = open("fruits.tmp", O_RDONLY);
-      config.stdin_ = std::move(Redirection::FileDescriptor(fruitsFd));
+      config.stdin_ = Redirection::FileDescriptor(fruitsFd);
     }
 #endif
     SECTION("shorthand") {
