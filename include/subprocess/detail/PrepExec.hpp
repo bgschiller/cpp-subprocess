@@ -23,7 +23,7 @@ namespace subprocess {
     std::string cmd;
     RaggedCstrArray argvec;
     std::optional<RaggedCstrArray> envvec;
-    std::optional<std::string> searchpath;
+    const char* searchpath_cstr = nullptr;
     std::vector<char> prealloc_exe;
 
     int32_t libc_exec();

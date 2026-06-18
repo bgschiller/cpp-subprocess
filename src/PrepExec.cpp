@@ -20,77 +20,69 @@ PrepExec::PrepExec(
   // Allocate enough room for "<pathdir>/<command>\0", pathdir
   // being the longest component of PATH.
   size_t max_exe_len = cmd.size() + 2;  // one for '/', one for '\0'
-  if (cmd.find("/") == std::string::npos) {
-    // use the parent's PATH to determine what to exec
-    const char* searchPathRaw = std::getenv("PATH");
-    if (searchPathRaw != nullptr) {
-      searchpath = std::string(searchPathRaw);
-      size_t pos = 0;
-      size_t thisDirSize = 0;
+  if (strchr(cmd.data(), '/') == nullptr) {
+    // Use the parent's PATH to determine what to exec.
+    searchpath_cstr = std::getenv("PATH");
+    if (searchpath_cstr != nullptr) {
+      // Walk PATH to find the longest component for buffer sizing.
       size_t biggestDirSize = 0;
-      while (searchPathRaw[pos] != '\0') {
-        if (searchPathRaw[pos] != ':') {
+      size_t thisDirSize = 0;
+      for (const char* p = searchpath_cstr; *p != '\0'; p++) {
+        if (*p != ':') {
           thisDirSize++;
-          biggestDirSize = thisDirSize > biggestDirSize ? thisDirSize : biggestDirSize;
+          if (thisDirSize > biggestDirSize) biggestDirSize = thisDirSize;
         } else {
           thisDirSize = 0;
         }
-        pos++;
       }
       max_exe_len += biggestDirSize;
     }
   }
-  prealloc_exe.reserve(max_exe_len);
+  // Resize (not just reserve) so that operator[] / data() is valid
+  // and no reallocation can happen in exec().
+  prealloc_exe.resize(max_exe_len);
 }
 
 int32_t PrepExec::exec() {
-  // Invoked after fork() - no heap allocation allowed.
-  if (searchpath.has_value()) {
+  // Invoked after fork() — no heap allocation, no C++ exceptions allowed.
+  // All operations below use only noexcept / pure-C primitives.
+  const char* cmd_data = cmd.data();
+  size_t cmd_len = cmd.size();
+
+  if (searchpath_cstr != nullptr) {
     int32_t errCode = 0;
     // POSIX requires execvp and execve, but not execvpe (although
-    // glibc provides one), so we have to iterate over PATH ourselves
-    size_t start = 0;
-    size_t end = searchpath->find(":");
-    while (start != std::string::npos) {  // for each PATH component,
-      // 1. build the full path to the executable, storing
-      //   the value in prealloc_exe. prealloc_exe is guaranteed
-      //   to be as long as (longest PATH component + 1 for slash + exe name + 1 for null
-      //   terminator) (see ctor for prealloc_exe.reserve())
-      size_t ix = 0;
-      size_t seg_end = (end == std::string::npos) ? searchpath->size() : end;
-      while (start < seg_end) {  // 1a. the PATH segment
-        prealloc_exe[ix++] = (*searchpath)[start++];
-      }  // exit condition: start == seg_end, the position after the current segment
-      prealloc_exe[ix++] = '/';  // 1b. a seperating '/'
-      for (auto ch : cmd) {      // 1c. the executable name
-        prealloc_exe[ix++] = ch;
-      }
-      prealloc_exe[ix] = '\0';  // 1d. a null-terminator
+    // glibc provides one), so we have to iterate over PATH ourselves.
+    const char* p = searchpath_cstr;
+    while (*p != '\0') {
+      // 1. Build the full path to the executable in prealloc_exe.
+      //    prealloc_exe is guaranteed to be large enough (see ctor sizing).
+      const char* end = p;
+      while (*end != '\0' && *end != ':') end++;
 
-      // 2. try to exec.
+      size_t seg_len = static_cast<size_t>(end - p);
+      char* buf = prealloc_exe.data();
+      memcpy(buf, p, seg_len);                       // the PATH segment
+      buf[seg_len] = '/';                            // separator
+      memcpy(buf + seg_len + 1, cmd_data, cmd_len);  // command name
+      buf[seg_len + 1 + cmd_len] = '\0';             // null terminator
+
+      // 2. Try to exec.
       errCode = libc_exec();
-      // if exec succeeds it doesn't return. When we reach
-      // this point the executable was not found at that path.
+      // If exec succeeds it doesn't return. When we reach this point
+      // the executable was not found at this path.
 
-      // 3. advance past the ':' delimiter to the next segment,
-      //    or signal termination if this was the last segment.
-      if (end == std::string::npos) {
-        start = std::string::npos;  // last segment processed
-      } else {
-        start = end + 1;
-        end = searchpath->find(":", start);
-      }
+      // 3. Advance to the next PATH segment, or exit loop.
+      if (*end == '\0') break;
+      p = end + 1;
     }
-    // we haven't found the command anywhere on the path, just return
-    // the last error
+    // We haven't found the command anywhere on PATH; return the last error.
     return errCode;
   }
 
-  size_t ix = 0;
-  for (auto ch : cmd) {
-    prealloc_exe[ix++] = ch;
-  }
-  prealloc_exe[ix] = '\0';
+  // Command contains a slash — try it directly without PATH search.
+  memcpy(prealloc_exe.data(), cmd_data, cmd_len);
+  prealloc_exe.data()[cmd_len] = '\0';
   return libc_exec();
 }
 
