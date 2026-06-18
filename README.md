@@ -9,7 +9,10 @@ A C++17 library for spawning and managing child processes, modelled on the
   stdin/stdout/stderr, `wait`, `poll`, and `wait_timeout`.
 - **`Exec`** — fluent builder for configuring and launching a process with
   argument lists, environment variables, working-directory overrides, and I/O
-  redirection.
+  redirection. Supports `popen()`, `join()`, `capture()`, `stream_stdout()`,
+  `stream_stdin()`, and `Exec::shell()`.
+- **`Pipeline`** — shell-style chain of two or more `Exec` stages connected
+  by pipes, with `popen()`, `join()`, and `capture()` methods.
 - **`Result<T>`** — lightweight error-or-value type used throughout the API
   instead of exceptions.
 - **`Redirection`** — flexible I/O routing: pipes, file descriptors, paths
@@ -196,24 +199,27 @@ if (status.is_a<subprocess::ExitStatus::Signaled>()) {
 | `take_error()` | Move the `PopenError` out |
 | `or_throw()` | Return value or throw `SubprocessException` |
 
-### `Exec` builder *(in progress)*
+### `Exec` builder
 
 `Exec::cmd("program").arg("--flag").cwd("/tmp").set_stdout(Redirection::Pipe())`
 
 | Method | Description |
 |---|---|
 | `Exec::cmd(command)` | Construct an `Exec` for `command` |
+| `Exec::shell(cmdstr)` | Construct an `Exec` that runs `cmdstr` through the system shell |
 | `arg(s)` / `add_args(v)` | Append argument(s) |
 | `env(k, v)` / `env_extend(v)` / `env_clear()` / `env_remove(k)` | Manage environment |
 | `cwd(path)` | Set working directory |
 | `set_stdin/set_stdout/set_stderr(r)` | Configure I/O redirection |
 | `detached()` | Mark the process as detached |
-
-`Exec::popen()`, `join()`, `capture()`, `stream_stdout()`, `stream_stdin()`, and
-`Exec::shell()` are currently being implemented (see `tickets/`).
+| `popen()` | Launch the process and return a `Popen` handle |
+| `join()` | Launch and wait; returns `ExitStatus` |
+| `capture()` | Launch, write any buffered stdin, collect stdout/stderr, wait, return `CaptureData` |
+| `stream_stdout()` | Launch with stdout as a pipe and return a readable `fdistream` |
+| `stream_stdin()` | Launch with stdin as a pipe and return a writable `fdostream` |
 
 ## Project status
 
-The core `Popen` API is complete and tested. The `Exec` builder and `Pipeline`
-type are under active development. See the `tickets/` directory for the full
-backlog.
+v0.1.0 — `Popen`, `Exec`, `Pipeline`, and `Result<T>` are all implemented and
+tested. The library is ready for use on POSIX platforms (Linux, macOS). Windows
+support is planned. See the `tickets/` directory for remaining work items.

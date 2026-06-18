@@ -11,8 +11,9 @@ It provides:
 - **`Exec`** — fluent builder for configuring and launching a process. Supports
   argument lists, environment manipulation, working-directory changes, and I/O
   redirection.
-- **`Pipeline`** (planned, see `tickets/11-pipeline.md`) — shell-style chain of
-  `Exec` stages connected by pipes.
+- **`Pipeline`** — shell-style chain of two or more `Exec` stages connected by
+  pipes. Supports `popen()`, `join()`, and `capture()`, paralleling the `Exec`
+  API.
 - **`Result<T>`** — lightweight error-or-value type used throughout the API
   instead of exceptions.
 
@@ -43,7 +44,6 @@ Key headers and their roles:
 | `Redirection.hpp`         | Enum for stdin/stdout/stderr routing               |
 | `ExitStatus.hpp`          | Discriminated union: `Exited`, `Signaled`, `Other` |
 | `CaptureData.hpp`         | Return type for captured stdout/stderr             |
-| `Communicator.hpp`        | Placeholder (communicate logic lives in `Popen.cpp`) |
 | `PrepExec.hpp`            | POSIX exec helpers                                 |
 
 ---
@@ -89,7 +89,11 @@ Test sources live in `test/src/`:
 | ---------------------------- | ---------------------------------------------------- |
 | `main.cpp`                   | Catch2 entry point (`CATCH_CONFIG_MAIN`)              |
 | `simple_commands.cpp`        | End-to-end `Popen` / pipeline tests                  |
-| `exec.cpp`                   | `Exec` builder tests (stub, expand as you implement) |
+| `exec.cpp`                   | `Exec` builder tests                                 |
+| `pipeline_test.cpp`          | `Pipeline` API tests                                 |
+| `fdstream_test.cpp`          | `fdstream` / `fdistream` unit tests                  |
+| `variant_visit_test.cpp`     | `VariantVisit` (`match`) utility tests               |
+| `windows_diagnostic_test.cpp`| Windows diagnostic utilities tests                   |
 | `ragged_cstr_array_test.cpp` | `RaggedCstrArray` unit tests                         |
 | `result_test.cpp`            | `Result<T>` unit tests                               |
 | `type_name_test.cpp`         | `type_name<T>()` utility tests                       |
