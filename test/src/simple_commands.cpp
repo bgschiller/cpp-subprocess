@@ -504,3 +504,39 @@ TEST_CASE("exit status decoding") {
   }
 #endif
 }
+
+#ifndef _WIN32
+TEST_CASE("Redirection::Merge") {
+  // Merge is a POSIX shell feature (2>&1 / 1>&2).
+  // These tests verify that the underlying dup() logic (ticket #02)
+  // does not produce a stale fd when the target stream uses a pipe.
+
+  SECTION("stderr merged into piped stdout (2>&1)") {
+    subprocess::PopenConfig cfg;
+    cfg.stdout_ = subprocess::Redirection::Pipe();
+    cfg.stderr_ = subprocess::Redirection::Merge();
+    auto p = subprocess::Popen::create(
+                 {kSh, "-c", "echo out; echo err >&2"}, cfg)
+                 .or_throw();
+    auto result = p.communicate().or_throw();
+    // Both streams should appear in stdout (merged).
+    REQUIRE(result.out == "out\nerr\n");
+    REQUIRE(result.err.empty());
+    REQUIRE(result.success());
+  }
+
+  SECTION("stdout merged into piped stderr (1>&2)") {
+    subprocess::PopenConfig cfg;
+    cfg.stdout_ = subprocess::Redirection::Merge();
+    cfg.stderr_ = subprocess::Redirection::Pipe();
+    auto p = subprocess::Popen::create(
+                 {kSh, "-c", "echo out; echo err >&2"}, cfg)
+                 .or_throw();
+    auto result = p.communicate().or_throw();
+    // Both streams should appear in stderr (merged).
+    REQUIRE(result.out.empty());
+    REQUIRE(result.err == "out\nerr\n");
+    REQUIRE(result.success());
+  }
+}
+#endif

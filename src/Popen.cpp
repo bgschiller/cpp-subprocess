@@ -504,11 +504,24 @@ Result<std::tuple<int, int, int>> Popen::setup_streams(
     if (!res.ok()) return res.take_error();
   }
 
-  // TODO: make sure we test these. Do we need to dup() to get a second reference to the same file?
   if (merge == MergeKind::ErrToOut) {
-    child_stderr = child_stdout;
+    if (child_stdout != 0 && child_stdout != 1 && child_stdout != 2) {
+      child_stderr = ::dup(child_stdout);
+      if (child_stderr == -1) {
+        return PopenError{ PopenError::IoError, std::string("dup: ") + strerror(errno) };
+      }
+    } else {
+      child_stderr = child_stdout;
+    }
   } else if (merge == MergeKind::OutToErr) {
-    child_stdout = child_stderr;
+    if (child_stderr != 0 && child_stderr != 1 && child_stderr != 2) {
+      child_stdout = ::dup(child_stderr);
+      if (child_stdout == -1) {
+        return PopenError{ PopenError::IoError, std::string("dup: ") + strerror(errno) };
+      }
+    } else {
+      child_stdout = child_stderr;
+    }
   }
 
   return std::make_tuple(child_stdin, child_stdout, child_stderr);
