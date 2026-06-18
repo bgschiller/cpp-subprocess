@@ -22,9 +22,13 @@ std::string ExitStatus::Other::toString() const {
 }
 
 bool ExitStatus::success() const {
-  return (
-      std::holds_alternative<ExitStatus::Exited>(_state) &&
-      std::get<ExitStatus::Exited>(_state).code == 0);
+  return visit(
+      subprocess::internal::overloaded{
+          [](const Exited& e) { return e.code == 0; },
+          [](const Signaled&) { return false; },
+          [](const Other&) { return false; },
+          [](const Undetermined&) { return false; },
+      });
 }
 
 std::string ExitStatus::toString() const {
