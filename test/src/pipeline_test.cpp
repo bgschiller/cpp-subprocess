@@ -408,3 +408,145 @@ TEST_CASE("Deferred error is propagated through stream_stdin()") {
   REQUIRE_FALSE(result.ok());
   REQUIRE(result.take_error().kind == subprocess::PopenError::IoError);
 }
+
+// ---------------------------------------------------------------------------
+// Pipeline::stream_stdout()
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Pipeline: stream_stdout reads from two-stage pipeline") {
+  // echo hello | cat  → reading from stream should give "hello\n"
+  auto result = (subprocess::Exec::cmd("echo").arg("hello")
+                 | subprocess::Exec::cmd("cat"))
+                    .stream_stdout();
+  REQUIRE(result.ok());
+  auto& stream = *result;
+  std::string line;
+  std::getline(stream, line);
+  if (!line.empty() && line.back() == '\r') line.pop_back();
+  REQUIRE(line == "hello");
+}
+
+TEST_CASE("Pipeline: stream_stdout auto-pipes when no stdout override") {
+  // No .set_stdout() called — stream_stdout must automatically set up the pipe.
+  auto result =
+      (subprocess::Exec::cmd("printf").arg("a\nb\nc\n")
+       | subprocess::Exec::cmd("cat"))
+          .stream_stdout();
+  REQUIRE(result.ok());
+  auto& stream = *result;
+  std::string line;
+  std::getline(stream, line);
+  REQUIRE(line == "a");
+  std::getline(stream, line);
+  REQUIRE(line == "b");
+  std::getline(stream, line);
+  REQUIRE(line == "c");
+}
+
+TEST_CASE("Pipeline: stream_stdout works with explicit Pipe stdout override") {
+  auto result =
+      (subprocess::Exec::cmd("echo").arg("explicit")
+       | subprocess::Exec::cmd("cat"))
+          .set_stdout(subprocess::Redirection::Pipe())
+          .stream_stdout();
+  REQUIRE(result.ok());
+  auto& stream = *result;
+  std::string line;
+  std::getline(stream, line);
+  if (!line.empty() && line.back() == '\r') line.pop_back();
+  REQUIRE(line == "explicit");
+}
+
+TEST_CASE("Pipeline: stream_stdout returns error for nonexistent command") {
+  auto result =
+      (subprocess::Exec::cmd("/definitely/does/not/exist/cmd")
+       | subprocess::Exec::cmd("cat"))
+          .stream_stdout();
+  REQUIRE_FALSE(result.ok());
+}
+
+TEST_CASE("Pipeline: stream_stdout returns error for nonexistent second stage") {
+  auto result =
+      (subprocess::Exec::cmd("echo").arg("hi")
+       | subprocess::Exec::cmd("/definitely/does/not/exist/cmd"))
+          .stream_stdout();
+  REQUIRE_FALSE(result.ok());
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline::stream_stdin()
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Pipeline: stream_stdin writes to first stage") {
+  // Write to cat's stdin; cat passes through to grep; grep filters.
+  // stream_stdin gives us a writable stream to the first process (cat).
+  auto result = (subprocess::Exec::cmd("cat")
+                 | subprocess::Exec::cmd("grep").arg("foo"))
+                    .stream_stdin();
+  REQUIRE(result.ok());
+  auto& stream = *result;
+  stream << "hello foo\n";
+  stream << "hello bar\n";
+  stream << "again foo\n";
+  stream.close();
+}
+
+TEST_CASE("Pipeline: stream_stdin data reaches first stage and propagates") {
+  // Use a shell as the last stage to verify that data written via
+  // stream_stdin flows through the pipeline correctly.
+  // First stage: cat passes data through.  Second stage: sh reads a line and
+  // exits 0 only if the line matches.
+  auto result =
+      (subprocess::Exec::cmd("cat")
+       | subprocess::Exec::cmd("sh")
+             .arg("-c")
+             .arg("read line; [ \"$line\" = \"expected\" ]"))
+          .stream_stdin();
+  REQUIRE(result.ok());
+  auto& stream = *result;
+  stream << "expected\n";
+  stream.close();
+}
+
+TEST_CASE("Pipeline: stream_stdin auto-pipes when no stdin override") {
+  // No .set_stdin() called — stream_stdin must automatically set up the pipe.
+  auto result =
+      (subprocess::Exec::cmd("sh")
+           .arg("-c")
+           .arg("read line; [ \"$line\" = \"auto\" ]")
+       | subprocess::Exec::cmd("cat"))
+          .stream_stdin();
+  REQUIRE(result.ok());
+  auto& stream = *result;
+  stream << "auto\n";
+  stream.close();
+}
+
+TEST_CASE("Pipeline: stream_stdin works with explicit Pipe stdin override") {
+  auto result =
+      (subprocess::Exec::cmd("cat")
+       | subprocess::Exec::cmd("grep").arg("yes"))
+          .set_stdin(subprocess::Redirection::Pipe())
+          .stream_stdin();
+  REQUIRE(result.ok());
+  auto& stream = *result;
+  stream << "nope\n";
+  stream << "yes\n";
+  stream.close();
+}
+
+TEST_CASE("Pipeline: stream_stdin returns error for nonexistent command") {
+  auto result =
+      (subprocess::Exec::cmd("/definitely/does/not/exist/cmd")
+       | subprocess::Exec::cmd("cat"))
+          .stream_stdin();
+  REQUIRE_FALSE(result.ok());
+}
+
+TEST_CASE("Pipeline: stream_stdin returns error for nonexistent second stage") {
+  auto result =
+      (subprocess::Exec::cmd("cat")
+       | subprocess::Exec::cmd("/definitely/does/not/exist/cmd"))
+          .stream_stdin();
+  REQUIRE_FALSE(result.ok());
+}

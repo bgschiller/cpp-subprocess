@@ -75,6 +75,38 @@ namespace subprocess {
     /// pipe are closed in the parent after all children have been spawned.
     Result<std::vector<Popen>> popen();
 
+    /// Launch all processes, detach the last Popen, and return its stdout as a
+    /// readable stream.
+    ///
+    /// If stdout of the last stage is not configured, it is automatically set
+    /// to `Redirection::Pipe()` before spawning.  If stdout was already
+    /// configured to a non-pipe redirection, a `PopenError::LogicError` is
+    /// returned.
+    ///
+    /// All `Popen` handles in the pipeline are detached, so the caller owns the
+    /// interaction purely through the returned stream.  The child processes run
+    /// concurrently; they are reaped by the OS when they exit.
+    ///
+    /// @returns `Result<boost::fdistream>` — a readable stream connected to the
+    ///          last child's stdout, or a `PopenError` on failure.
+    Result<boost::fdistream> stream_stdout();
+
+    /// Launch all processes, detach the first Popen, and return its stdin as a
+    /// writable stream.
+    ///
+    /// If stdin of the first stage is not configured, it is automatically set
+    /// to `Redirection::Pipe()` before spawning.  If stdin was already
+    /// configured to a non-pipe redirection, a `PopenError::LogicError` is
+    /// returned.
+    ///
+    /// All `Popen` handles in the pipeline are detached, so the caller owns the
+    /// interaction purely through the returned stream.  The child processes run
+    /// concurrently; they are reaped by the OS when they exit.
+    ///
+    /// @returns `Result<boost::fdostream>` — a writable stream connected to the
+    ///          first child's stdin, or a `PopenError` on failure.
+    Result<boost::fdostream> stream_stdin();
+
     /// Launch all processes, wait for all to exit, and return the exit status
     /// of the last process.
     Result<ExitStatus> join();

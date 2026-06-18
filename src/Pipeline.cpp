@@ -259,6 +259,73 @@ namespace subprocess {
                         std::move(comm.exit_status) };
   }
 
+  Result<boost::fdistream> Pipeline::stream_stdout() {
+    // If stdout_override_ is requested and is not a Pipe, the caller has
+    // deliberately configured a non-pipe redirection (e.g. NullFile).  We
+    // cannot stream, and popen() will not create std_out.  The check after
+    // popen() below catches this.
+    if (!stdout_override_) {
+      stdout_override_ = Redirection::Pipe();
+    }
+
+    // popen() may call Exec::set_stdout(Pipe) on the last stage, which throws
+    // std::runtime_error if that stage's stdout is already set to a non-Pipe
+    // redirection.  Use a lambda so the Result is never default-constructed
+    // (Popen is move-only, so std::vector<Popen> is not copyable).
+    auto procs_result = [this]() -> Result<std::vector<Popen>> {
+      try {
+        return popen();
+      } catch (const std::runtime_error& e) {
+        return PopenError{ PopenError::LogicError, std::string("stream_stdout: ") + e.what() };
+      }
+    }();
+    if (!procs_result.ok()) return procs_result.take_error();
+    auto procs = procs_result.take_value();
+
+    auto& last = procs.back();
+    if (!last.std_out.has_value()) {
+      return PopenError{ PopenError::LogicError,
+                         "stream_stdout: stdout of last stage is not a pipe" };
+    }
+
+    // Detach all Popens so their destructors do not wait().  The caller owns
+    // the interaction purely through the returned stream; the child processes
+    // are reaped by the OS when they exit.
+    for (auto& proc : procs) {
+      proc.detach();
+    }
+
+    return std::move(*last.std_out);
+  }
+
+  Result<boost::fdostream> Pipeline::stream_stdin() {
+    if (!stdin_override_) {
+      stdin_override_ = Redirection::Pipe();
+    }
+
+    auto procs_result = [this]() -> Result<std::vector<Popen>> {
+      try {
+        return popen();
+      } catch (const std::runtime_error& e) {
+        return PopenError{ PopenError::LogicError, std::string("stream_stdin: ") + e.what() };
+      }
+    }();
+    if (!procs_result.ok()) return procs_result.take_error();
+    auto procs = procs_result.take_value();
+
+    auto& first = procs.front();
+    if (!first.std_in.has_value()) {
+      return PopenError{ PopenError::LogicError,
+                         "stream_stdin: stdin of first stage is not a pipe" };
+    }
+
+    for (auto& proc : procs) {
+      proc.detach();
+    }
+
+    return std::move(*first.std_in);
+  }
+
   Pipeline operator|(Exec lhs, Exec rhs) { return Pipeline{ std::move(lhs), std::move(rhs) }; }
 
   Pipeline operator|(Pipeline lhs, Exec rhs) {
