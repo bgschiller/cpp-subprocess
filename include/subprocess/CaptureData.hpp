@@ -14,11 +14,11 @@ namespace subprocess {
   /// redirected to a `Redirection::Pipe`.
   struct CaptureData {
     /// All bytes written by the child to stdout (empty if stdout was not piped).
-    std::string out;
+    std::string out;  // NOLINT(misc-non-private-member-variables-in-classes)
     /// All bytes written by the child to stderr (empty if stderr was not piped).
-    std::string err;
+    std::string err;  // NOLINT(misc-non-private-member-variables-in-classes)
     /// Exit status of the child process after `communicate()` completes.
-    ExitStatus exit_status;
+    ExitStatus exit_status;  // NOLINT(misc-non-private-member-variables-in-classes)
 
     /// Constructs a `CaptureData` with the given stdout, stderr, and exit status.
     CaptureData(std::string stdout_data, std::string stderr_data, ExitStatus status)
@@ -27,7 +27,7 @@ namespace subprocess {
         , exit_status{ std::move(status) } { }
 
     /// Returns `true` if the child exited with status 0.
-    bool success() const { return exit_status.success(); }
+    [[nodiscard]] bool success() const { return exit_status.success(); }
   };
 
 }  // namespace subprocess

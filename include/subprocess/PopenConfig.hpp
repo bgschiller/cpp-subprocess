@@ -12,7 +12,7 @@
 namespace subprocess {
 
   /// What the destructor does when the child is still running.
-  enum class DestructorPolicy {
+  enum class DestructorPolicy : uint8_t {
     /// Wait indefinitely for the child to exit (current behaviour).
     Wait,
     /// Send SIGTERM (or TerminateProcess on Windows), then wait indefinitely.

@@ -48,6 +48,8 @@ namespace subprocess {
     ~Popen();
     Popen(Popen&& other) noexcept;
     Popen& operator=(Popen&& other) noexcept;
+    Popen(const Popen&) = delete;
+    Popen& operator=(const Popen&) = delete;
     static Result<Popen> create(const std::vector<std::string>& argv, const PopenConfig& cfg);
 
     /**

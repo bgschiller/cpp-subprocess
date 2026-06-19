@@ -90,7 +90,7 @@ TEST_CASE("Result: or_throw on error throws SubprocessException by value") {
   bool caught_as_pointer = false;
   try {
     subprocess::Result<int> r2{ make_error("bang2") };
-    r2.or_throw();
+    static_cast<void>(r2.or_throw());
   } catch (subprocess::SubprocessException*) {
     caught_as_pointer = true;
   } catch (subprocess::SubprocessException&) {

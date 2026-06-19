@@ -343,7 +343,7 @@ TEST_CASE("signal methods") {
 #else
     auto p = subprocess::Popen::create({"cmd.exe", "/c", "exit 0"}, subprocess::PopenConfig{}).or_throw();
 #endif
-    p.wait().or_throw();  // process has now finished
+    static_cast<void>(p.wait().or_throw());  // process has now finished
 
     auto sig_result = p.send_signal(SIGTERM);
     REQUIRE_FALSE(sig_result.ok());
@@ -357,7 +357,7 @@ TEST_CASE("signal methods") {
 #else
     auto p = subprocess::Popen::create({"cmd.exe", "/c", "exit 0"}, subprocess::PopenConfig{}).or_throw();
 #endif
-    p.wait().or_throw();
+    static_cast<void>(p.wait().or_throw());
 
     auto sig_result = p.kill();
     REQUIRE_FALSE(sig_result.ok());
@@ -370,7 +370,7 @@ TEST_CASE("signal methods") {
 #else
     auto p = subprocess::Popen::create({"cmd.exe", "/c", "exit 0"}, subprocess::PopenConfig{}).or_throw();
 #endif
-    p.wait().or_throw();
+    static_cast<void>(p.wait().or_throw());
 
     auto sig_result = p.terminate();
     REQUIRE_FALSE(sig_result.ok());

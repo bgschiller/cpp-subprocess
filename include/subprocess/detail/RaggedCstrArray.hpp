@@ -8,9 +8,11 @@
 namespace subprocess {
   struct RaiiCharStar {
     mutable std::vector<char> buf;
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     RaiiCharStar(std::string s)
         : buf(s.c_str(), s.c_str() + s.size() + 1) { }
-    operator char*() const { return &buf[0]; };
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
+    operator char*() const { return &buf[0]; }
   };
 
   /**
@@ -36,7 +38,8 @@ namespace subprocess {
    */
   class RaggedCstrArray {
    public:
-    RaggedCstrArray() { }
+    RaggedCstrArray() = default;
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     RaggedCstrArray(std::vector<std::string> strs)
         : _cStrs{ strs.begin(), strs.end() }
         , _ptrs{ _cStrs.begin(), _cStrs.end() } { }

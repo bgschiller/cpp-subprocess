@@ -17,40 +17,44 @@ using namespace subprocess;
 using namespace subprocess::internal;
 
 void Redirection::FileDescriptor::discard() {
-  if (_owned) {
+  if (owned_) {
     subprocess::close_fd(fd);
-    _owned = false;
+    owned_ = false;
   }
 }
 int Redirection::FileDescriptor::release() {
-  _owned = false;
+  owned_ = false;
   return fd;
 }
-Redirection::FileDescriptor::FileDescriptor(int _fd)
-    : fd{ _fd }
-    , _owned{ true } { }
+Redirection::FileDescriptor::FileDescriptor(int file_descriptor)
+    : fd{ file_descriptor }
+    , owned_{ true } { }
 Redirection::FileDescriptor::~FileDescriptor() { discard(); }
 Redirection::FileDescriptor::FileDescriptor(const FileDescriptor& other)
     : fd{ other.fd }
-    , _owned{ false } { }
+    , owned_{ false } { }
 Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(const FileDescriptor& other) {
-  discard();
-  fd = other.fd;
-  _owned = false;
+  if (this != &other) {
+    discard();
+    fd = other.fd;
+    owned_ = false;
+  }
   return *this;
 }
 
 Redirection::FileDescriptor::FileDescriptor(FileDescriptor&& other) noexcept
     : fd{ other.fd }
-    , _owned{ true } {
-  other._owned = false;
+    , owned_{ true } {
+  other.owned_ = false;
 }
 Redirection::FileDescriptor& Redirection::FileDescriptor::operator=(
     FileDescriptor&& other) noexcept {
-  discard();
-  fd = other.fd;
-  _owned = other._owned;
-  other._owned = false;
+  if (this != &other) {
+    discard();
+    fd = other.fd;
+    owned_ = other.owned_;
+    other.owned_ = false;
+  }
   return *this;
 }
 

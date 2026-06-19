@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include <array>
+
 #ifdef _WIN32
 #include <errno.h>
 #include <io.h>
@@ -40,8 +42,8 @@ namespace subprocess {
     }
     return std::make_tuple(read_fd, write_fd);
 #else
-    int pipe_fds[2];
-    if (::pipe(pipe_fds) != 0) {
+    std::array<int, 2> pipe_fds{};
+    if (::pipe(pipe_fds.data()) != 0) {
       return PopenError{ PopenError::ErrKind::IoError, std::string("pipe(): ") +
                                                            std::to_string(errno) +
                                                            std::string(" ") + strerror(errno) };

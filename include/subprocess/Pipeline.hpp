@@ -60,7 +60,7 @@ namespace subprocess {
 
     /// Returns `true` if a previous file-redirection operator stored a
     /// deferred error (e.g. the file does not exist or is not readable).
-    bool has_deferred_error() const { return deferred_error_.has_value(); }
+    [[nodiscard]] bool has_deferred_error() const { return deferred_error_.has_value(); }
 
     /// Launch all processes in the pipeline and return their `Popen` handles.
     ///

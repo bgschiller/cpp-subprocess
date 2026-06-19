@@ -1,15 +1,13 @@
 #ifndef SUBPROCESS_DETAIL_TYPE_NAME_H_
 #define SUBPROCESS_DETAIL_TYPE_NAME_H_
 
-#include <string>
-#include <typeinfo>
+#include <string_view>
 
 namespace subprocess::internal {
-#include <string_view>
 
   template<typename T>
   constexpr auto get_type_name() -> std::string_view {
-#if defined(__clang__)
+#ifdef __clang__
     constexpr auto prefix = std::string_view{ "[T = " };
     constexpr auto suffix = "]";
     constexpr auto function = std::string_view{ __PRETTY_FUNCTION__ };

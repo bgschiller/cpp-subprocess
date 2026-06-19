@@ -5,13 +5,12 @@
 using namespace subprocess;
 using namespace subprocess::internal;
 
-ChildState& ChildState::operator=(ChildState&& other) {
+ChildState& ChildState::operator=(ChildState&& other) noexcept {
   _state = std::move(other._state);
   return *this;
 }
 
-ChildState::ChildState(ChildState&& other)
+ChildState::ChildState(ChildState&& other) noexcept
     : _state{ std::move(other._state) } { }
 
-ChildState::ChildState(const ChildState& other)
-    : _state{ other._state } { }
+ChildState::ChildState(const ChildState& other) = default;

@@ -3,6 +3,8 @@
 #endif
 #include <catch2/catch.hpp>
 
+#include <array>
+
 #include "subprocess/Exec.hpp"
 #include "subprocess/operators.hpp"
 #include "subprocess/Redirection.hpp"
@@ -103,7 +105,7 @@ TEST_CASE("Pipeline: popen returns handles for all stages") {
           .or_throw();
   REQUIRE(procs.size() == 2);
   for (auto& p : procs) {
-    p.wait().or_throw();
+    static_cast<void>(p.wait().or_throw());
   }
 }
 
@@ -162,11 +164,11 @@ TEST_CASE("Exec operator> redirects stdout to file (overwrite)") {
   // Read back the file
   FILE* f = fopen("redirect_test_out.txt", "r");
   REQUIRE(f != nullptr);
-  char buf[256] = {};
-  fgets(buf, sizeof(buf), f);
+  std::array<char, 256> buf{};
+  fgets(buf.data(), buf.size(), f);
   fclose(f);
   // Normalize CRLF
-  std::string out(buf);
+  std::string out(buf.data());
   out.erase(std::remove(out.begin(), out.end(), '\r'), out.end());
   REQUIRE(out == "overwritten\n");
 
@@ -181,10 +183,10 @@ TEST_CASE("Exec operator> redirects stdout to file (overwrite)") {
 
   f = fopen("redirect_test_out.txt", "r");
   REQUIRE(f != nullptr);
-  memset(buf, 0, sizeof(buf));
-  fgets(buf, sizeof(buf), f);
+  buf.fill(0);
+  fgets(buf.data(), buf.size(), f);
   fclose(f);
-  out = buf;
+  out = buf.data();
   out.erase(std::remove(out.begin(), out.end(), '\r'), out.end());
   REQUIRE(out == "new content\n");
 
@@ -221,9 +223,9 @@ TEST_CASE("Exec operator>> redirects stdout to file (append)") {
   {
     FILE* f = fopen("redirect_test_append.txt", "r");
     REQUIRE(f != nullptr);
-    char buf[256] = {};
-    while (fgets(buf, sizeof(buf), f)) {
-      content += buf;
+    std::array<char, 256> buf{};
+    while (fgets(buf.data(), buf.size(), f)) {
+      content += buf.data();
     }
     fclose(f);
   }
@@ -273,10 +275,10 @@ TEST_CASE("Pipeline operator> redirects stdout of last stage to file") {
 
   FILE* f = fopen("pl_out.txt", "r");
   REQUIRE(f != nullptr);
-  char buf[256] = {};
-  fgets(buf, sizeof(buf), f);
+  std::array<char, 256> buf{};
+  fgets(buf.data(), buf.size(), f);
   fclose(f);
-  std::string out(buf);
+  std::string out(buf.data());
   out.erase(std::remove(out.begin(), out.end(), '\r'), out.end());
   REQUIRE(out == "pipeline_out\n");
 
@@ -300,8 +302,8 @@ TEST_CASE("Pipeline operator>> redirects stdout of last stage to file (append)")
   {
     FILE* f = fopen("pl_append.txt", "r");
     REQUIRE(f != nullptr);
-    char buf[256] = {};
-    while (fgets(buf, sizeof(buf), f)) content += buf;
+    std::array<char, 256> buf{};
+    while (fgets(buf.data(), buf.size(), f)) content += buf.data();
     fclose(f);
   }
   content.erase(std::remove(content.begin(), content.end(), '\r'), content.end());
@@ -330,8 +332,8 @@ TEST_CASE("Combined expression: cmd < file | cmd > file") {
   {
     FILE* f = fopen("combo_out.txt", "r");
     REQUIRE(f != nullptr);
-    char buf[256] = {};
-    while (fgets(buf, sizeof(buf), f)) content += buf;
+    std::array<char, 256> buf{};
+    while (fgets(buf.data(), buf.size(), f)) content += buf.data();
     fclose(f);
   }
   content.erase(std::remove(content.begin(), content.end(), '\r'), content.end());
@@ -369,10 +371,10 @@ TEST_CASE("operator>> has correct precedence with pipe") {
   // Read the file
   FILE* f = fopen("precedence_test.txt", "r");
   REQUIRE(f != nullptr);
-  char buf[256] = {};
-  fgets(buf, sizeof(buf), f);
+  std::array<char, 256> buf{};
+  fgets(buf.data(), buf.size(), f);
   fclose(f);
-  std::string out(buf);
+  std::string out(buf.data());
   out.erase(std::remove(out.begin(), out.end(), '\r'), out.end());
   REQUIRE(out == "hello\n");
 

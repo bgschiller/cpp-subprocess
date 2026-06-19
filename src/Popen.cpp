@@ -421,7 +421,7 @@ Result<std::nullopt_t> Popen::send_signal(int signum) {
 // Unix-specific helpers and implementations
 // ---------------------------------------------------------------------------
 
-enum class MergeKind {
+enum class MergeKind : uint8_t {
   ErrToOut,  // 2>&1
   OutToErr,  // 1>&2
   None,

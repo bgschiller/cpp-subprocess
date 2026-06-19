@@ -4,6 +4,7 @@
 
 #include <string>
 #include <variant>
+
 namespace subprocess {
 
   struct ExitStatus {
@@ -13,9 +14,9 @@ namespace subprocess {
      * Note that the exit code is limited to a much smaller range on most platforms.
      */
     struct Exited {
-      int32_t code;
+      int32_t code;  // NOLINT(misc-non-private-member-variables-in-classes)
 
-      std::string toString() const;
+      [[nodiscard]] std::string toString() const;
     };
 
     /**
@@ -24,9 +25,9 @@ namespace subprocess {
      * The variant is never created on Windows, where signals of Unix kind do not exist.
      */
     struct Signaled {
-      int32_t signal;
+      int32_t signal;  // NOLINT(misc-non-private-member-variables-in-classes)
 
-      std::string toString() const;
+      [[nodiscard]] std::string toString() const;
     };
     /**
      * The process exit status cannot be described by the preceding two variants.
@@ -34,9 +35,9 @@ namespace subprocess {
      * This should not occur in normal operation.
      */
     struct Other {
-      int32_t code;
+      int32_t code;  // NOLINT(misc-non-private-member-variables-in-classes)
 
-      std::string toString() const;
+      [[nodiscard]] std::string toString() const;
     };
 
     /**
@@ -52,35 +53,39 @@ namespace subprocess {
     StateType _state;
 
    public:
-    template<typename... Args>
+    template<
+        typename... Args, typename = std::enable_if_t<std::is_constructible_v<StateType, Args...>>>
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     ExitStatus(Args&&... args)
         : _state{ std::forward<Args>(args)... } { }
 
     template<typename T>
-    bool is_a() const {
+    [[nodiscard]] bool is_a() const {
       return std::holds_alternative<T>(_state);
     }
     template<typename T>
-    T get() const {
+    [[nodiscard]] T get() const {
       return std::get<T>(_state);
     }
-    ExitStatus(const ExitStatus& other);
-    ExitStatus(ExitStatus&& other);
+    ExitStatus(const ExitStatus& other) = default;
+    ExitStatus(ExitStatus&& other) noexcept;
+    ExitStatus& operator=(const ExitStatus& other) = default;
+    ExitStatus& operator=(ExitStatus&& other) noexcept;
+    ~ExitStatus() = default;
 
-    bool success() const;
+    [[nodiscard]] bool success() const;
 
-    std::string toString() const;
+    [[nodiscard]] std::string toString() const;
 
     /// std::visit the internal variant with an arbitrary visitor.
     ///
     /// The visitor must be callable for every alternative (Exited, Signaled,
     /// Other, Undetermined).  The return type is deduced from the visitor.
     template<typename Visitor>
-    auto visit(Visitor&& v) const -> decltype(std::visit(std::forward<Visitor>(v), _state)) {
-      return std::visit(std::forward<Visitor>(v), _state);
+    [[nodiscard]] auto visit(Visitor&& visitor) const
+        -> decltype(std::visit(std::forward<Visitor>(visitor), _state)) {
+      return std::visit(std::forward<Visitor>(visitor), _state);
     }
-
-    ExitStatus& operator=(ExitStatus&& other);
   };
 }  // namespace subprocess
 #endif

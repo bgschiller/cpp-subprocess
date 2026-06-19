@@ -1,8 +1,9 @@
 #ifndef SUBPROCESS_DETAIL_VARIANT_HELPERS_H_
 #define SUBPROCESS_DETAIL_VARIANT_HELPERS_H_
 
-#include <iostream>
+#include <array>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "type_name.hpp"
@@ -12,9 +13,9 @@ namespace subprocess::internal {
   template<typename T>
   class DefinesToString {
     // grumble grumble, wish we had concepts
-    typedef char one;
+    using one = char;
     struct two {
-      char x[2];
+      std::array<char, 2> x;
     };
 
     template<typename C>
@@ -23,7 +24,8 @@ namespace subprocess::internal {
     static two test(...);
 
    public:
-    enum { value = sizeof(test<T>(0)) == sizeof(char) };
+    enum class Value : bool { no = false, yes = true };
+    static constexpr bool value = sizeof(test<T>(0)) == sizeof(char);
   };
 
   template<class... Ts>
@@ -38,16 +40,18 @@ namespace subprocess::internal {
     return std::visit(
         [](auto&& arg) -> std::string {
           using T = std::decay_t<decltype(arg)>;
-          if constexpr (DefinesToString<T>::value) return arg.toString();
-          auto itemName = get_type_name<T>();
-          static const std::string prefix{ ">::" };
-          auto start = itemName.find(prefix);
-          if (start == std::string_view::npos) {
-            start = 0;
-          } else {
-            start = start + prefix.size();
+          if constexpr (DefinesToString<T>::value) {
+            return arg.toString();
           }
-          return std::string{ itemName.substr(start) };
+          auto item_name = get_type_name<T>();
+          static const std::string prefix{ ">::" };
+          auto start_pos = item_name.find(prefix);
+          if (start_pos == std::string_view::npos) {
+            start_pos = 0;
+          } else {
+            start_pos = start_pos + prefix.size();
+          }
+          return std::string{ item_name.substr(start_pos) };
         },
         var);
   }

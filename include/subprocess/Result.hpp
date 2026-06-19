@@ -2,6 +2,7 @@
 #define SUBPROCESS_RESULT_H_
 
 #include <string>
+#include <utility>
 #include <variant>
 
 #include "PopenError.hpp"
@@ -39,45 +40,51 @@ namespace subprocess {
 
    public:
     /// Construct from anything that can initialise the underlying `variant`.
-    template<typename... Args>
+    template<
+        typename... Args, typename = std::enable_if_t<std::is_constructible_v<StateType, Args...>>>
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     Result(Args&&... args)
         : _state{ std::forward<Args>(args)... } { }
 
-    Result(Result&& other)
+    Result(Result&& other) noexcept
         : _state{ std::move(other._state) } { }
-    Result(const Result& other)
-        : _state{ other._state } { }
+    Result(const Result& other) = default;
 
-    Result& operator=(Result&& other) {
-      _state = std::move(other._state);
+    Result& operator=(Result&& other) noexcept {
+      if (this != &other) {
+        _state = std::move(other._state);
+      }
       return *this;
     }
+    Result& operator=(const Result& other) = default;
+
+    ~Result() = default;
 
     // ---------------------------------------------------------------------------
     // Observers
     // ---------------------------------------------------------------------------
 
     /// @returns `true` if this `Result` holds a success value.
-    bool ok() const { return std::holds_alternative<T>(_state); }
+    [[nodiscard]] bool ok() const { return std::holds_alternative<T>(_state); }
 
     /// @returns `true` if this `Result` holds a success value.
-    explicit operator bool() const { return ok(); }
+    [[nodiscard]] explicit operator bool() const { return ok(); }
 
     /// Dereference to a reference to the contained value.
     /// @pre `ok()` must be `true`; behaviour is undefined otherwise.
-    T& operator*() { return std::get<T>(_state); }
+    [[nodiscard]] T& operator*() { return std::get<T>(_state); }
 
     /// Dereference to a const reference to the contained value.
     /// @pre `ok()` must be `true`; behaviour is undefined otherwise.
-    const T& operator*() const { return std::get<T>(_state); }
+    [[nodiscard]] const T& operator*() const { return std::get<T>(_state); }
 
     /// Member-access operator delegating to the contained value.
     /// @pre `ok()` must be `true`; behaviour is undefined otherwise.
-    T* operator->() { return &std::get<T>(_state); }
+    [[nodiscard]] T* operator->() { return &std::get<T>(_state); }
 
     /// Member-access operator delegating to the contained value (const).
     /// @pre `ok()` must be `true`; behaviour is undefined otherwise.
-    const T* operator->() const { return &std::get<T>(_state); }
+    [[nodiscard]] const T* operator->() const { return &std::get<T>(_state); }
 
     // ---------------------------------------------------------------------------
     // Value / error extraction (consuming)
@@ -85,18 +92,20 @@ namespace subprocess {
 
     /// Move the error out of this `Result`.
     /// @pre `!ok()` must be `true`.
-    PopenError&& take_error() { return std::move(std::get<PopenError>(_state)); }
+    [[nodiscard]] PopenError&& take_error() { return std::move(std::get<PopenError>(_state)); }
 
     /// Move the value out of this `Result`.
     /// @pre `ok()` must be `true`.
-    T&& take_value() { return std::move(std::get<T>(_state)); }
+    [[nodiscard]] T&& take_value() { return std::move(std::get<T>(_state)); }
 
     /// Return the contained value, or throw `SubprocessException` on error.
     ///
     /// The exception is thrown **by value** (not by pointer), so callers can
     /// catch it with `catch (const subprocess::SubprocessException& e)`.
-    T&& or_throw() {
-      if (!ok()) throw SubprocessException(take_error().message.c_str());
+    [[nodiscard]] T&& or_throw() {
+      if (!ok()) {
+        throw SubprocessException(take_error().message.c_str());
+      }
       return take_value();
     }
 
@@ -115,10 +124,12 @@ namespace subprocess {
     /// Result<std::string> s = r.map([](int x){ return std::to_string(x); });
     /// ```
     template<typename F>
-    auto map(F&& f) -> Result<decltype(f(std::declval<T&>()))> {
-      using U = decltype(f(std::declval<T&>()));
-      if (!ok()) return take_error();
-      return Result<U>{ f(std::get<T>(_state)) };
+    [[nodiscard]] auto map(F func) -> Result<decltype(func(std::declval<T&>()))> {
+      using U = decltype(func(std::declval<T&>()));
+      if (!ok()) {
+        return Result<U>{ take_error() };
+      }
+      return Result<U>{ func(std::get<T>(_state)) };
     }
 
     /// Chain a fallible operation: `f` receives the success value and returns a
@@ -133,10 +144,12 @@ namespace subprocess {
     ///     .and_then([](Popen proc){ return proc.wait(); });
     /// ```
     template<typename F>
-    auto and_then(F&& f) -> decltype(f(std::declval<T&>())) {
-      using R = decltype(f(std::declval<T&>()));
-      if (!ok()) return R{ take_error() };
-      return f(std::get<T>(_state));
+    [[nodiscard]] auto and_then(F func) -> decltype(func(std::declval<T&>())) {
+      using R = decltype(func(std::declval<T&>()));
+      if (!ok()) {
+        return R{ take_error() };
+      }
+      return func(std::get<T>(_state));
     }
   };
 

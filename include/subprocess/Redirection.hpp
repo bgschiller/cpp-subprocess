@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <utility>
 #include <variant>
 
 #include "subprocess/Result.hpp"
@@ -64,15 +65,15 @@ namespace subprocess {
     /// The field in `Popen` corresponding to the stream will be
     /// std::nullopt.
     struct FileDescriptor {
-      int fd;
+      int fd;  // NOLINT(misc-non-private-member-variables-in-classes)
 
      private:
-      bool _owned{ false };
+      bool owned_{ false };
 
       void discard();
 
      public:
-      FileDescriptor(int _fd);
+      explicit FileDescriptor(int file_descriptor);
 
       /// Relinquish ownership of the fd without closing it.
       /// Returns the fd and ensures the destructor will not close it.
@@ -122,31 +123,36 @@ namespace subprocess {
     StateType _state;
 
    public:
-    template<typename... Args>
+    template<
+        typename... Args, typename = std::enable_if_t<std::is_constructible_v<StateType, Args...>>>
+    // NOLINTNEXTLINE(hicpp-explicit-conversions)
     Redirection(Args&&... args)
         : _state{ std::forward<Args>(args)... } { }
 
-    Redirection(const Redirection& other)
-        : _state{ other._state } { }
+    Redirection(const Redirection& other) = default;
 
     Redirection(Redirection&& other) noexcept;
 
     Redirection& operator=(const Redirection& other) {
-      _state = other._state;
+      if (this != &other) {
+        _state = other._state;
+      }
       return *this;
     }
     Redirection& operator=(Redirection&& other) noexcept;
 
+    ~Redirection() = default;
+
     template<typename T>
-    bool is_a() const {
+    [[nodiscard]] bool is_a() const {
       return std::holds_alternative<T>(_state);
     }
     template<typename T>
-    T get() const {
+    [[nodiscard]] T get() const {
       return std::get<T>(_state);
     }
 
-    std::string toString() const;
+    [[nodiscard]] std::string toString() const;
 
     /// Release ownership of any contained FileDescriptor fd so its destructor
     /// will not close it.  Used by Pipeline after manually closing pipe fds.
@@ -168,8 +174,9 @@ namespace subprocess {
     ///   });
     /// @endcode
     template<typename Visitor>
-    auto visit(Visitor&& v) const -> decltype(std::visit(std::forward<Visitor>(v), _state)) {
-      return std::visit(std::forward<Visitor>(v), _state);
+    [[nodiscard]] auto visit(Visitor&& visitor) const
+        -> decltype(std::visit(std::forward<Visitor>(visitor), _state)) {
+      return std::visit(std::forward<Visitor>(visitor), _state);
     }
   };
 }  // namespace subprocess
